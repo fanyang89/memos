@@ -22,6 +22,7 @@ require (
 	github.com/moby/moby/api v1.54.2
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/openai/openai-go/v3 v3.32.0
+	github.com/philippgille/chromem-go v0.7.0
 	github.com/pion/opus v0.0.0-20260430223319-81a9c5dc5013
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.10.2
