@@ -462,7 +462,16 @@
       "transcription-prompt": "Prompt hints",
       "transcription-provider": "Provider",
       "transcription-title": "Transcription",
-      "transcription-warning-no-key": "The selected provider has no API key set. Edit the integration above to add one."
+      "transcription-warning-no-key": "The selected provider has no API key set. Edit the integration above to add one.",
+      "embedding-description": "Semantic search converts your notes into vectors so you can search by meaning rather than exact words. Configure an embedding provider to enable it.",
+      "embedding-empty-providers": "Add an AI integration first to enable semantic search.",
+      "embedding-model-help": "Free text. Use the provider's embedding model identifier — e.g. text-embedding-3-small, nomic-embed-text, bge-m3. For Ollama via OpenAI-compat endpoint, use e.g. nomic-embed-text.",
+      "embedding-model-placeholder-openai": "text-embedding-3-small",
+      "embedding-model": "Model",
+      "embedding-no-provider": "None — semantic search disabled",
+      "embedding-provider": "Provider",
+      "embedding-title": "Semantic search",
+      "embedding-warning-no-key": "The selected provider has no API key set. Edit the integration above to add one."
     },
     "instance": {
       "access-description": "Control sign-up, authentication, profile editing, and calendar defaults for this instance.",

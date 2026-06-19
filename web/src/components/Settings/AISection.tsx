@@ -17,6 +17,8 @@ import {
   InstanceSetting_AIProviderConfigSchema,
   InstanceSetting_AIProviderType,
   InstanceSetting_AISettingSchema,
+  InstanceSetting_EmbeddingConfig,
+  InstanceSetting_EmbeddingConfigSchema,
   InstanceSetting_Key,
   InstanceSetting_TranscriptionConfig,
   InstanceSetting_TranscriptionConfigSchema,
@@ -44,6 +46,11 @@ type LocalTranscription = {
   model: string;
   language: string;
   prompt: string;
+};
+
+type LocalEmbedding = {
+  providerId: string;
+  model: string;
 };
 
 const providerTypeOptions = [InstanceSetting_AIProviderType.OPENAI, InstanceSetting_AIProviderType.GEMINI];
@@ -78,6 +85,11 @@ const toLocalTranscription = (config: InstanceSetting_TranscriptionConfig | unde
   prompt: config?.prompt ?? "",
 });
 
+const toLocalEmbedding = (config: InstanceSetting_EmbeddingConfig | undefined): LocalEmbedding => ({
+  providerId: config?.providerId ?? "",
+  model: config?.model ?? "",
+});
+
 const newProvider = (): LocalAIProvider => ({
   id: createProviderID(),
   title: "",
@@ -105,12 +117,19 @@ const toTranscriptionConfig = (transcription: LocalTranscription) =>
     prompt: transcription.prompt,
   });
 
+const toEmbeddingConfig = (embedding: LocalEmbedding) =>
+  create(InstanceSetting_EmbeddingConfigSchema, {
+    providerId: embedding.providerId,
+    model: embedding.model.trim(),
+  });
+
 const AISection = () => {
   const t = useTranslate();
   const saveInstanceSetting = useInstanceSettingUpdater();
   const { aiSetting: originalSetting } = useInstance();
   const [providers, setProviders] = useState<LocalAIProvider[]>(() => originalSetting.providers.map(toLocalProvider));
   const [transcription, setTranscription] = useState<LocalTranscription>(() => toLocalTranscription(originalSetting.transcription));
+  const [embedding, setEmbedding] = useState<LocalEmbedding>(() => toLocalEmbedding(originalSetting.embedding));
   const [editingProvider, setEditingProvider] = useState<LocalAIProvider | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<LocalAIProvider | undefined>();
 
@@ -131,12 +150,29 @@ const AISection = () => {
     }
   }, [originalSetting.transcription]);
 
+  const lastSyncedEmbedding = useRef<LocalEmbedding>(toLocalEmbedding(originalSetting.embedding));
+  useEffect(() => {
+    const next = toLocalEmbedding(originalSetting.embedding);
+    if (!isEqual(lastSyncedEmbedding.current, next)) {
+      setEmbedding(next);
+      lastSyncedEmbedding.current = next;
+    }
+  }, [originalSetting.embedding]);
+
   const originalTranscription = useMemo(() => toLocalTranscription(originalSetting.transcription), [originalSetting.transcription]);
   const transcriptionHasChanges = !isEqual(transcription, originalTranscription);
+
+  const originalEmbedding = useMemo(() => toLocalEmbedding(originalSetting.embedding), [originalSetting.embedding]);
+  const embeddingHasChanges = !isEqual(embedding, originalEmbedding);
 
   const transcriptionProviderRef = useMemo(
     () => providers.find((provider) => provider.id === transcription.providerId),
     [providers, transcription.providerId],
+  );
+
+  const embeddingProviderRef = useMemo(
+    () => providers.find((provider) => provider.id === embedding.providerId),
+    [providers, embedding.providerId],
   );
 
   // Persists the AI setting using a specific providers list and transcription
@@ -145,6 +181,7 @@ const AISection = () => {
   const persistAISetting = async (
     nextProviders: LocalAIProvider[],
     nextTranscription: InstanceSetting_TranscriptionConfig | undefined,
+    nextEmbedding: InstanceSetting_EmbeddingConfig | undefined,
     errorContext: string,
   ) => {
     return saveInstanceSetting({
@@ -156,6 +193,7 @@ const AISection = () => {
           value: create(InstanceSetting_AISettingSchema, {
             providers: nextProviders.map(toProviderConfig),
             transcription: nextTranscription,
+            embedding: nextEmbedding,
           }),
         },
       }),
@@ -190,7 +228,7 @@ const AISection = () => {
       ? providers.map((item) => (item.id === normalizedProvider.id ? normalizedProvider : item))
       : [...providers, normalizedProvider];
 
-    const ok = await persistAISetting(nextProviders, originalSetting.transcription, "Update AI provider");
+    const ok = await persistAISetting(nextProviders, originalSetting.transcription, originalSetting.embedding, "Update AI provider");
     if (!ok) return;
     setProviders(nextProviders);
     setEditingProvider(undefined);
@@ -201,20 +239,28 @@ const AISection = () => {
     const target = deleteTarget;
     const nextProviders = providers.filter((provider) => provider.id !== target.id);
 
-    // If the persisted transcription references the deleted provider, the
-    // server would reject the save (provider_id must reference an existing
-    // provider). Send a cleared transcription in that case.
+    // If the persisted transcription or embedding references the deleted provider, the
+    // server would reject the save (provider_id must reference an existing provider).
+    // Send a cleared config in that case.
     const persistedTranscription = originalSetting.transcription;
     const nextTranscription =
       persistedTranscription && persistedTranscription.providerId === target.id
         ? create(InstanceSetting_TranscriptionConfigSchema, {})
         : persistedTranscription;
+    const persistedEmbedding = originalSetting.embedding;
+    const nextEmbedding =
+      persistedEmbedding && persistedEmbedding.providerId === target.id
+        ? create(InstanceSetting_EmbeddingConfigSchema, {})
+        : persistedEmbedding;
 
-    const ok = await persistAISetting(nextProviders, nextTranscription, "Delete AI provider");
+    const ok = await persistAISetting(nextProviders, nextTranscription, nextEmbedding, "Delete AI provider");
     if (!ok) return;
     setProviders(nextProviders);
     if (transcription.providerId === target.id) {
       setTranscription((prev) => ({ ...prev, providerId: "" }));
+    }
+    if (embedding.providerId === target.id) {
+      setEmbedding((prev) => ({ ...prev, providerId: "" }));
     }
     setDeleteTarget(undefined);
   };
@@ -224,7 +270,15 @@ const AISection = () => {
       toast.error(t("setting.ai.transcription-empty-providers"));
       return;
     }
-    await persistAISetting(providers, toTranscriptionConfig(transcription), "Update transcription");
+    await persistAISetting(providers, toTranscriptionConfig(transcription), originalSetting.embedding, "Update transcription");
+  };
+
+  const handleSaveEmbedding = async () => {
+    if (embedding.providerId && !embeddingProviderRef) {
+      toast.error(t("setting.ai.embedding-empty-providers"));
+      return;
+    }
+    await persistAISetting(providers, originalSetting.transcription, toEmbeddingConfig(embedding), "Update embedding");
   };
 
   return (
@@ -334,6 +388,19 @@ const AISection = () => {
         />
       </SettingGroup>
 
+      <SettingGroup
+        title={t("setting.ai.embedding-title")}
+        description={t("setting.ai.embedding-description")}
+        showSeparator
+        actions={
+          <Button disabled={!embeddingHasChanges} onClick={handleSaveEmbedding}>
+            {t("common.save")}
+          </Button>
+        }
+      >
+        <EmbeddingForm providers={providers} embedding={embedding} onChange={setEmbedding} referencedProvider={embeddingProviderRef} />
+      </SettingGroup>
+
       <AIProviderDialog
         provider={editingProvider}
         onOpenChange={(open) => !open && setEditingProvider(undefined)}
@@ -437,6 +504,68 @@ const TranscriptionForm = ({ providers, transcription, referencedProvider, onCha
           maxLength={4096}
         />
         <p className="text-xs text-muted-foreground">{t("setting.ai.transcription-prompt-help")}</p>
+      </div>
+    </div>
+  );
+};
+
+interface EmbeddingFormProps {
+  providers: LocalAIProvider[];
+  embedding: LocalEmbedding;
+  referencedProvider: LocalAIProvider | undefined;
+  onChange: (next: LocalEmbedding) => void;
+}
+
+const EmbeddingForm = ({ providers, embedding, referencedProvider, onChange }: EmbeddingFormProps) => {
+  const t = useTranslate();
+  const noProviders = providers.length === 0;
+
+  const update = (partial: Partial<LocalEmbedding>) => {
+    onChange({ ...embedding, ...partial });
+  };
+
+  const placeholderForProvider = (provider: LocalAIProvider | undefined) => {
+    if (!provider) return "";
+    return provider.type === InstanceSetting_AIProviderType.OPENAI ? t("setting.ai.embedding-model-placeholder-openai") : "";
+  };
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl">
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label>{t("setting.ai.embedding-provider")}</Label>
+        <Select
+          value={embedding.providerId || "__none__"}
+          onValueChange={(value) => update({ providerId: value === "__none__" ? "" : value })}
+          disabled={noProviders}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">{t("setting.ai.embedding-no-provider")}</SelectItem>
+            {providers.map((provider) => (
+              <SelectItem key={provider.id} value={provider.id}>
+                {provider.title || provider.id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {noProviders && <p className="text-xs text-muted-foreground">{t("setting.ai.embedding-empty-providers")}</p>}
+        {referencedProvider && !referencedProvider.apiKeySet && (
+          <p className="text-xs text-destructive">{t("setting.ai.embedding-warning-no-key")}</p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label>{t("setting.ai.embedding-model")}</Label>
+        <Input
+          value={embedding.model}
+          onChange={(e) => update({ model: e.target.value })}
+          placeholder={placeholderForProvider(referencedProvider)}
+          disabled={!embedding.providerId}
+          maxLength={256}
+        />
+        <p className="text-xs text-muted-foreground">{t("setting.ai.embedding-model-help")}</p>
       </div>
     </div>
   );
