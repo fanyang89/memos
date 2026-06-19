@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -35,14 +36,15 @@ var (
 		Short: `An open source, lightweight note-taking service. Easily capture and share your great thoughts.`,
 		Run: func(_ *cobra.Command, _ []string) {
 			instanceProfile := &profile.Profile{
-				Demo:        viper.GetBool("demo"),
-				Addr:        viper.GetString("addr"),
-				Port:        viper.GetInt("port"),
-				UNIXSock:    viper.GetString("unix-sock"),
-				Data:        viper.GetString("data"),
-				Driver:      viper.GetString("driver"),
-				DSN:         viper.GetString("dsn"),
-				InstanceURL: viper.GetString("instance-url"),
+				Demo:              viper.GetBool("demo"),
+				Addr:              viper.GetString("addr"),
+				Port:              viper.GetInt("port"),
+				UNIXSock:          viper.GetString("unix-sock"),
+				Data:              viper.GetString("data"),
+				Driver:            viper.GetString("driver"),
+				DSN:               viper.GetString("dsn"),
+				InstanceURL:       viper.GetString("instance-url"),
+				MemoIndexInterval: viper.GetDuration("memoindex-interval"),
 			}
 			instanceProfile.Version = version.GetCurrentVersion()
 			instanceProfile.Commit = version.Commit
@@ -127,6 +129,7 @@ func init() {
 	rootCmd.PersistentFlags().String("instance-url", "", "the url of your memos instance")
 	rootCmd.PersistentFlags().Bool("allow-private-webhooks", false, "allow webhook URLs to resolve to private/reserved IP addresses")
 	rootCmd.PersistentFlags().String("log-level", "info", "log verbosity level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().Duration("memoindex-interval", 5*time.Minute, "interval at which the memo semantic-index runner runs. Set to 0 to use the default 5m. Examples: 5m, 30s, 1h.")
 
 	if err := viper.BindPFlag("demo", rootCmd.PersistentFlags().Lookup("demo")); err != nil {
 		panic(err)
@@ -156,6 +159,9 @@ func init() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("memoindex-interval", rootCmd.PersistentFlags().Lookup("memoindex-interval")); err != nil {
 		panic(err)
 	}
 

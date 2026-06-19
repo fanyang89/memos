@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -34,6 +35,11 @@ type Profile struct {
 	Commit string
 	// InstanceURL is the url of your memos instance.
 	InstanceURL string
+	// MemoIndexInterval controls how often the memo semantic-index runner wakes
+	// to backfill missing embeddings and reconcile deleted memos against the
+	// vector store. Zero means "use default 5m". Parsed from
+	// MEMOS_MEMOINDEX_INTERVAL env or --memoindex-interval flag.
+	MemoIndexInterval time.Duration
 }
 
 func checkDataDir(dataDir string) (string, error) {
@@ -103,6 +109,10 @@ func (p *Profile) Validate() error {
 		}
 		dbFile := fmt.Sprintf("memos_%s.db", mode)
 		p.DSN = filepath.Join(dataDir, dbFile)
+	}
+
+	if p.MemoIndexInterval <= 0 {
+		p.MemoIndexInterval = 5 * time.Minute
 	}
 
 	return nil
