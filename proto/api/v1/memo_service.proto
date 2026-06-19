@@ -670,4 +670,8 @@ message SearchResult {
   ];
   // Cosine similarity in [0, 1].
   float similarity = 2;
+  // Plain text snippet from the best matching chunk.
+  string snippet = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Zero-based index of the best matching chunk within the memo.
+  int32 chunk_index = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
 }

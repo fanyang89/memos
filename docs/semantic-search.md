@@ -2,8 +2,8 @@
 
 Memos supports local, private semantic search over your notes using [Ollama](https://ollama.com/)
 for embeddings and [chromem-go](https://github.com/philippgille/chromem-go) as an embedded vector
-store. After configuration you can search memos by meaning rather than exact substring match —
-useful for finding notes when you remember the concept but not the wording.
+store. Memo content is split into token-budgeted chunks before embedding, so long notes can be
+matched by the most relevant section rather than by a single whole-note vector.
 
 This guide covers a fresh deployment end-to-end: prerequisites, Memos configuration, usage, and
 troubleshooting.
@@ -43,8 +43,11 @@ troubleshooting.
 - **Vector store**: `chromem-go` is embedded directly in the Memos process — no extra
   service to run. Persistence is a gzip-compressed file plus a small sidecar index for
   orphan reconciliation.
-- **Indexing pipeline**: hybrid. Writes (`CreateMemo`/`UpdateMemo`) trigger async
-  upserts; a background runner reconciles and backfills periodically.
+- **Indexing pipeline**: hybrid. Writes (`CreateMemo`/`UpdateMemo` and Markdown zip import)
+  trigger async chunk upserts; a background runner reconciles and backfills periodically.
+- **Chunking**: each memo is stripped to plain text, split with Markdown / Chinese / English
+  boundaries, then capped by a token budget. Search ranks chunks first and returns memo-level
+  results with the best matching chunk snippet.
 
 ---
 
@@ -173,7 +176,8 @@ Click the icon to toggle. In semantic mode:
 
 - Placeholder changes to *"Search memos by meaning…"*
 - Type a natural-language query and press **Enter**
-- Results render inline below the input, each tagged with `NN% match`
+- Results render inline below the input, each tagged with `NN% match` and the best matching
+  chunk snippet
 
 The toggle is purely client-side state — no page reload required.
 
@@ -211,8 +215,8 @@ scan plus full sidecar scan regardless of changes.
 Different models produce different vector dimensions, so chromem-go stores them in
 separate collections. Changing the model in Settings:
 
-1. Creates a new empty collection `memos-<newmodel>`
-2. Leaves the old collection on disk (orphaned; not auto-deleted)
+1. Creates a new empty collection `memos-chunk-v1-<newmodel>`
+2. Leaves the old collection and sidecar on disk (orphaned; not auto-deleted)
 3. Triggers full backfill on the next runner pass (CPU/IO intensive)
 
 Until the backfill completes, search results will be incomplete. For a clean cutover,
@@ -227,8 +231,8 @@ folder (`/var/opt/memos` in Docker, `~/.memos/` or `./` locally by default):
 
 ```
 <vector-db>/
-├── memos-<model>.chromem-go   # chromem-go persistent file (gzip)
-└── memo-index.gob             # sidecar: indexed memo IDs → content SHA
+├── memos-chunk-v1-<model>.chromem-go          # chromem-go persistent file (gzip)
+└── memo-index-memos-chunk-v1-<model>.gob      # sidecar: indexed memo IDs → content SHA
 ```
 
 **Backup**: include the data directory in your existing Memos backup. The vector files
@@ -276,8 +280,8 @@ Response:
 ```json
 {
   "results": [
-    {"memo": "memos/abc123", "similarity": 0.87},
-    {"memo": "memos/def456", "similarity": 0.74}
+    {"memo": "memos/abc123", "similarity": 0.87, "snippet": "...", "chunkIndex": 2},
+    {"memo": "memos/def456", "similarity": 0.74, "snippet": "...", "chunkIndex": 0}
   ]
 }
 ```
@@ -329,7 +333,7 @@ MEMOS_LOG_LEVEL=debug MEMOS_MEMOINDEX_INTERVAL=30s go run ./cmd/memos
   surface the error to the user.
 - **No hot reload of the index interval**: changing `MEMOS_MEMOINDEX_INTERVAL`
   requires a process restart.
-- **Switching models leaves orphaned collections**: previous collections stay on
-  disk; reclaim space by deleting `vector-db/` and restarting.
+- **Switching models or chunk strategy leaves orphaned collections**: previous collections stay
+  on disk; reclaim space by deleting `vector-db/` and restarting.
 - **No built-in monitoring**: no metrics endpoint for index size or query latency
   yet. Watch logs and the on-disk `vector-db/` size.

@@ -125,18 +125,19 @@ func (s *APIV1Service) SearchMemos(ctx context.Context, request *v1pb.SearchMemo
 		topK = maxSearchTopK
 	}
 
-	// Over-fetch to compensate for memos filtered out by read-access checks.
+	// Over-fetch distinct memos so read-access checks still have enough candidates.
 	fetchK := topK * 2
 	if fetchK > maxSearchTopK {
 		fetchK = maxSearchTopK
 	}
 	where := map[string]string{"creator_id": fmt.Sprintf("%d", user.ID)}
-	scored, err := s.VectorStore.Query(ctx, query, fetchK, where)
+	scored, err := s.VectorStore.QueryMemos(ctx, query, fetchK, where)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "semantic search failed: %v", err)
 	}
 
-	// Resolve memo IDs → memos, enforcing read access per result.
+	// Resolve memo IDs → memos, enforcing read access per result. The vector
+	// layer already returns distinct memo hits, ranked by their best chunk.
 	memoIDs := make([]int32, 0, len(scored))
 	for _, hit := range scored {
 		memoIDs = append(memoIDs, hit.MemoID)
@@ -165,6 +166,8 @@ func (s *APIV1Service) SearchMemos(ctx context.Context, request *v1pb.SearchMemo
 		results = append(results, &v1pb.SearchResult{
 			Memo:       MemoNamePrefix + memo.UID,
 			Similarity: hit.Similarity,
+			Snippet:    hit.Snippet,
+			ChunkIndex: hit.ChunkIndex,
 		})
 	}
 

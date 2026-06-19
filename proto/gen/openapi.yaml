@@ -3560,6 +3560,15 @@ components:
                     type: number
                     description: Cosine similarity in [0, 1].
                     format: float
+                snippet:
+                    readOnly: true
+                    type: string
+                    description: Plain text snippet from the best matching chunk.
+                chunkIndex:
+                    readOnly: true
+                    type: integer
+                    description: Zero-based index of the best matching chunk within the memo.
+                    format: int32
         SetMemoAttachmentsRequest:
             required:
                 - name

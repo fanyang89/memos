@@ -2287,7 +2287,11 @@ type SearchResult struct {
 	// The memo resource name, e.g. "memos/{id}".
 	Memo string `protobuf:"bytes,1,opt,name=memo,proto3" json:"memo,omitempty"`
 	// Cosine similarity in [0, 1].
-	Similarity    float32 `protobuf:"fixed32,2,opt,name=similarity,proto3" json:"similarity,omitempty"`
+	Similarity float32 `protobuf:"fixed32,2,opt,name=similarity,proto3" json:"similarity,omitempty"`
+	// Plain text snippet from the best matching chunk.
+	Snippet string `protobuf:"bytes,3,opt,name=snippet,proto3" json:"snippet,omitempty"`
+	// Zero-based index of the best matching chunk within the memo.
+	ChunkIndex    int32 `protobuf:"varint,4,opt,name=chunk_index,json=chunkIndex,proto3" json:"chunk_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2332,6 +2336,20 @@ func (x *SearchResult) GetMemo() string {
 func (x *SearchResult) GetSimilarity() float32 {
 	if x != nil {
 		return x.Similarity
+	}
+	return 0
+}
+
+func (x *SearchResult) GetSnippet() string {
+	if x != nil {
+		return x.Snippet
+	}
+	return ""
+}
+
+func (x *SearchResult) GetChunkIndex() int32 {
+	if x != nil {
+		return x.ChunkIndex
 	}
 	return 0
 }
@@ -2662,13 +2680,16 @@ const file_api_v1_memo_service_proto_rawDesc = "" +
 	"\x05top_k\x18\x02 \x01(\x05B\x03\xe0A\x01R\x04topK\x12\x1b\n" +
 	"\x06filter\x18\x03 \x01(\tB\x03\xe0A\x01R\x06filter\"K\n" +
 	"\x13SearchMemosResponse\x124\n" +
-	"\aresults\x18\x01 \x03(\v2\x1a.memos.api.v1.SearchResultR\aresults\"]\n" +
+	"\aresults\x18\x01 \x03(\v2\x1a.memos.api.v1.SearchResultR\aresults\"\xa2\x01\n" +
 	"\fSearchResult\x12-\n" +
 	"\x04memo\x18\x01 \x01(\tB\x19\xe0A\x02\xfaA\x13\n" +
 	"\x11memos.api.v1/MemoR\x04memo\x12\x1e\n" +
 	"\n" +
 	"similarity\x18\x02 \x01(\x02R\n" +
-	"similarity*P\n" +
+	"similarity\x12\x1d\n" +
+	"\asnippet\x18\x03 \x01(\tB\x03\xe0A\x03R\asnippet\x12$\n" +
+	"\vchunk_index\x18\x04 \x01(\x05B\x03\xe0A\x03R\n" +
+	"chunkIndex*P\n" +
 	"\n" +
 	"Visibility\x12\x1a\n" +
 	"\x16VISIBILITY_UNSPECIFIED\x10\x00\x12\v\n" +

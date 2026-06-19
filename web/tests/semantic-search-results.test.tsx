@@ -59,12 +59,22 @@ describe("<SemanticSearchResults>", () => {
 
   it("renders matched memos with a similarity line", () => {
     mockedUseSearchMemos.mockReturnValue({
-      data: { results: [{ memo: "memos/x", similarity: 0.82 }] },
+      data: { results: [{ memo: "memos/x", similarity: 0.82, snippet: "matched semantic chunk", chunkIndex: 1 }] },
+      isLoading: false,
+      error: null,
+    } as never);
+    renderResults();
+    expect(screen.getByText("matched semantic chunk")).toBeInTheDocument();
+    expect(screen.getByText("memo.semantic-similarity")).toBeInTheDocument();
+  });
+
+  it("falls back to the memo content when the search result has no snippet", () => {
+    mockedUseSearchMemos.mockReturnValue({
+      data: { results: [{ memo: "memos/x", similarity: 0.82, snippet: "", chunkIndex: 0 }] },
       isLoading: false,
       error: null,
     } as never);
     renderResults();
     expect(screen.getByText("hello world content here")).toBeInTheDocument();
-    expect(screen.getByText("memo.semantic-similarity")).toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,6 +141,7 @@ func TestSearchMemos_IndexHookRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.GetResults(), 1)
 	require.Equal(t, created.Name, resp.GetResults()[0].GetMemo())
+	require.NotEmpty(t, resp.GetResults()[0].GetSnippet())
 
 	// DeleteMemo must remove it from the index synchronously.
 	_, err = ts.Service.DeleteMemo(userCtx, &v1pb.DeleteMemoRequest{Name: created.Name})
@@ -148,6 +150,65 @@ func TestSearchMemos_IndexHookRoundTrip(t *testing.T) {
 	resp, err = ts.Service.SearchMemos(userCtx, &v1pb.SearchMemosRequest{Query: "golang notes"})
 	require.NoError(t, err)
 	require.Empty(t, resp.GetResults(), "deleted memo must not appear in search")
+}
+
+func TestSearchMemos_LongMemoChunkResultsDeduped(t *testing.T) {
+	ctx := context.Background()
+	ts := NewTestService(t)
+	defer ts.Cleanup()
+
+	mock := newMockEmbeddingsServer(t)
+	defer mock.Close()
+	vs := injectVectorStore(t, ts, mock.URL)
+
+	_, err := ts.Store.UpsertInstanceSetting(ctx, &storepb.InstanceSetting{
+		Key: storepb.InstanceSettingKey_AI,
+		Value: &storepb.InstanceSetting_AiSetting{
+			AiSetting: &storepb.InstanceAISetting{
+				Providers: []*storepb.AIProviderConfig{{
+					Id:       "openai-main",
+					Title:    "OpenAI",
+					Type:     storepb.AIProviderType_OPENAI,
+					Endpoint: mock.URL,
+					ApiKey:   "sk-test",
+				}},
+				Embedding: &storepb.EmbeddingConfig{
+					ProviderId: "openai-main",
+					Model:      "nomic-embed-text",
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	_, err = ts.Store.UpsertInstanceSetting(ctx, &storepb.InstanceSetting{
+		Key: storepb.InstanceSettingKey_MEMO_RELATED,
+		Value: &storepb.InstanceSetting_MemoRelatedSetting{
+			MemoRelatedSetting: &storepb.InstanceMemoRelatedSetting{ContentLengthLimit: 0},
+		},
+	})
+	require.NoError(t, err)
+
+	user, err := ts.CreateRegularUser(ctx, "charlie")
+	require.NoError(t, err)
+	userCtx := ts.CreateUserContext(ctx, user.ID)
+	longContent := strings.Repeat("中文长文检索需要按句子切片。", 1200)
+	created, err := ts.Service.CreateMemo(userCtx, &v1pb.CreateMemoRequest{
+		Memo: &v1pb.Memo{Content: longContent, Visibility: v1pb.Visibility_PRIVATE},
+	})
+	require.NoError(t, err)
+	memoID := memoIDFromName(ctx, t, ts, created.Name)
+	waitForIndex(t, vs, memoID, 2*time.Second)
+
+	chunkHits, err := vs.Query(ctx, "中文长文", 10, nil)
+	require.NoError(t, err)
+	require.Greater(t, len(chunkHits), 1, "long memo should have multiple chunk hits")
+
+	resp, err := ts.Service.SearchMemos(userCtx, &v1pb.SearchMemosRequest{Query: "中文长文", TopK: 20})
+	require.NoError(t, err)
+	require.Len(t, resp.GetResults(), 1, "multiple chunk hits for the same memo should be deduped")
+	require.Equal(t, created.Name, resp.GetResults()[0].GetMemo())
+	require.NotEmpty(t, resp.GetResults()[0].GetSnippet())
+	require.GreaterOrEqual(t, resp.GetResults()[0].GetChunkIndex(), int32(0))
 }
 
 func TestSearchMemos_RejectsContentFilter(t *testing.T) {

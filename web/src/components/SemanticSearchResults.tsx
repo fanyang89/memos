@@ -33,7 +33,13 @@ const SemanticSearchResults = ({ query, onClose }: SemanticSearchResultsProps) =
   return (
     <ul className="flex flex-col gap-1 py-1">
       {results.map((result) => (
-        <SemanticSearchResultRow key={result.memo} name={result.memo} similarity={result.similarity} onClose={onClose} />
+        <SemanticSearchResultRow
+          key={result.memo}
+          name={result.memo}
+          similarity={result.similarity}
+          snippet={result.snippet}
+          onClose={onClose}
+        />
       ))}
     </ul>
   );
@@ -42,13 +48,14 @@ const SemanticSearchResults = ({ query, onClose }: SemanticSearchResultsProps) =
 interface RowProps {
   name: string;
   similarity: number;
+  snippet: string;
   onClose?: () => void;
 }
 
-const SemanticSearchResultRow = ({ name, similarity, onClose }: RowProps) => {
+const SemanticSearchResultRow = ({ name, similarity, snippet: searchSnippet, onClose }: RowProps) => {
   const t = useTranslate();
   const { data: memo } = useMemo(name);
-  const snippet = memo?.content?.slice(0, 80) ?? "";
+  const snippet = searchSnippet || memo?.content?.slice(0, 80) || "";
   const pct = Math.round((similarity > 1 ? 1 : similarity) * 100);
 
   return (
