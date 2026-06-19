@@ -22,6 +22,9 @@ dist
 # VSCode settings
 .vscode
 
+# OpenCode local config
+.opencode/
+
 # Git worktrees
 .worktrees/
 

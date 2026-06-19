@@ -1,0 +1,47 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build frontend assets and backend binary.
+    cmds:
+      - task: web:release
+      - ./scripts/build.sh
+
+  test:
+    desc: Run backend and frontend tests.
+    cmds:
+      - go test ./...
+      - task: web:test
+
+  docker:build:
+    desc: Build the local Docker image.
+    cmds:
+      - task: web:release
+      - docker build -t "${IMAGE:-memos:dev}" -f scripts/Dockerfile .
+
+  fmt:
+    desc: Format Go, frontend, and proto files.
+    cmds:
+      - go fmt ./...
+      - task: web:format
+      - task: proto:format
+
+  web:release:
+    dir: web
+    cmds:
+      - pnpm release
+
+  web:test:
+    dir: web
+    cmds:
+      - pnpm test
+
+  web:format:
+    dir: web
+    cmds:
+      - pnpm format
+
+  proto:format:
+    dir: proto
+    cmds:
+      - buf format -w

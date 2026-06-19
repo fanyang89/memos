@@ -1,7 +1,7 @@
 {
   "name": "memos",
   "private": true,
-  "packageManager": "pnpm@11.0.1",
+  "packageManager": "pnpm@11.8.0",
   "engines": {
     "node": ">=24"
   },
