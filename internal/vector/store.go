@@ -360,11 +360,11 @@ var (
 	htmlTag = regexp.MustCompile(`<[^>]+>`)
 )
 
-// toPlainText strips markdown noise (code fences, images, link URLs, raw HTML)
+// PlainText strips markdown noise (code fences, images, link URLs, raw HTML)
 // while preserving the readable words. This is a minimal, dependency-free
 // transform suitable as embedding input; it deliberately does not attempt full
 // markdown rendering.
-func toPlainText(content string) string {
+func PlainText(content string) string {
 	s := fencedCodeBlock.ReplaceAllString(content, " ")
 	s = inlineCode.ReplaceAllString(s, "$1")
 	s = imageMarkdown.ReplaceAllString(s, " ")
@@ -372,3 +372,6 @@ func toPlainText(content string) string {
 	s = htmlTag.ReplaceAllString(s, " ")
 	return strings.Join(strings.Fields(s), " ")
 }
+
+// toPlainText is an alias kept for internal call sites.
+func toPlainText(content string) string { return PlainText(content) }
