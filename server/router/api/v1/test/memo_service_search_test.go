@@ -17,6 +17,13 @@ import (
 	storepb "github.com/usememos/memos/proto/gen/store"
 )
 
+// embeddingsRequestBody models the JSON body sent to /v1/embeddings so the
+// test handler can decode inputs without unchecked type assertions.
+type embeddingsRequestBody struct {
+	Model string   `json:"model"`
+	Input []string `json:"input"`
+}
+
 // newMockEmbeddingsServer returns an httptest server that responds to
 // /v1/embeddings (Ollama/OpenAI-compat) with fixed 8-dim vectors derived from
 // input length, so identical-ish texts cluster.
@@ -27,12 +34,10 @@ func newMockEmbeddingsServer(t *testing.T) *httptest.Server {
 		require.Equal(t, "/embeddings", r.URL.Path)
 		require.Equal(t, "Bearer sk-test", r.Header.Get("Authorization"))
 
-		var body map[string]any
+		var body embeddingsRequestBody
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-		inputs, _ := body["input"].([]any)
-		data := make([]map[string]any, 0, len(inputs))
-		for i, in := range inputs {
-			s, _ := in.(string)
+		data := make([]map[string]any, 0, len(body.Input))
+		for i, s := range body.Input {
 			vec := make([]float64, 8)
 			for j := range vec {
 				vec[j] = float64(len(s)%8 + j + i)
