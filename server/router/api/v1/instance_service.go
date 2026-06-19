@@ -666,10 +666,21 @@ func validateInstanceSetting(setting *v1pb.InstanceSetting) error {
 	if err != nil {
 		return err
 	}
-	if key != storepb.InstanceSettingKey_TAGS.String() {
+	switch key {
+	case storepb.InstanceSettingKey_MEMO_RELATED.String():
+		setting := setting.GetMemoRelatedSetting()
+		if setting == nil {
+			return errors.New("memo related setting is required")
+		}
+		if setting.ContentLengthLimit < 0 {
+			return errors.New("content length limit cannot be negative")
+		}
+		return nil
+	case storepb.InstanceSettingKey_TAGS.String():
+		return validateInstanceTagsSetting(setting.GetTagsSetting())
+	default:
 		return nil
 	}
-	return validateInstanceTagsSetting(setting.GetTagsSetting())
 }
 
 func (s *APIV1Service) prepareInstanceAISettingForUpdate(ctx context.Context, setting *storepb.InstanceAISetting) error {

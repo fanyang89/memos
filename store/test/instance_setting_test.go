@@ -182,6 +182,22 @@ func TestInstanceSettingMemoRelatedSetting(t *testing.T) {
 	require.Equal(t, int32(16384), memoSetting.ContentLengthLimit)
 	require.Equal(t, customReactions, memoSetting.Reactions)
 
+	// Explicit zero disables the content length limit.
+	_, err = ts.UpsertInstanceSetting(ctx, &storepb.InstanceSetting{
+		Key: storepb.InstanceSettingKey_MEMO_RELATED,
+		Value: &storepb.InstanceSetting_MemoRelatedSetting{
+			MemoRelatedSetting: &storepb.InstanceMemoRelatedSetting{
+				ContentLengthLimit: 0,
+				Reactions:          customReactions,
+			},
+		},
+	})
+	require.NoError(t, err)
+	memoSetting, err = ts.GetInstanceMemoRelatedSetting(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(0), memoSetting.ContentLengthLimit)
+	require.Equal(t, customReactions, memoSetting.Reactions)
+
 	ts.Close()
 }
 

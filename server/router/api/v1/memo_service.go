@@ -235,7 +235,7 @@ func (s *APIV1Service) CreateMemo(ctx context.Context, request *v1pb.CreateMemoR
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get content length limit")
 	}
-	if len(create.Content) > contentLengthLimit {
+	if contentLengthLimit > 0 && len(create.Content) > contentLengthLimit {
 		return nil, status.Errorf(codes.InvalidArgument, "content too long (max %d characters)", contentLengthLimit)
 	}
 	if err := memopayload.RebuildMemoPayload(ctx, create, s.MarkdownService); err != nil {
@@ -622,7 +622,7 @@ func (s *APIV1Service) UpdateMemo(ctx context.Context, request *v1pb.UpdateMemoR
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to get content length limit")
 			}
-			if len(request.Memo.Content) > contentLengthLimit {
+			if contentLengthLimit > 0 && len(request.Memo.Content) > contentLengthLimit {
 				return nil, status.Errorf(codes.InvalidArgument, "content too long (max %d characters)", contentLengthLimit)
 			}
 			memo.Content = request.Memo.Content

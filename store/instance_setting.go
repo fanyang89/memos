@@ -161,7 +161,7 @@ func (s *Store) GetInstanceMemoRelatedSetting(ctx context.Context) (*storepb.Ins
 	if instanceSetting != nil {
 		instanceMemoRelatedSetting = instanceSetting.GetMemoRelatedSetting()
 	}
-	if instanceMemoRelatedSetting.ContentLengthLimit < DefaultContentLengthLimit {
+	if instanceSetting == nil || instanceMemoRelatedSetting.ContentLengthLimit < 0 {
 		instanceMemoRelatedSetting.ContentLengthLimit = DefaultContentLengthLimit
 	}
 	if len(instanceMemoRelatedSetting.Reactions) == 0 {

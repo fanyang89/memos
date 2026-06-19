@@ -15,6 +15,7 @@ import {
   InstanceSettingSchema,
 } from "@/types/proto/api/v1/instance_service_pb";
 import { useTranslate } from "@/utils/i18n";
+import MarkdownZipImportPanel from "./MarkdownZipImportPanel";
 import SettingGroup from "./SettingGroup";
 import { SettingList, SettingListItem, SettingPanel } from "./SettingList";
 import SettingSection from "./SettingSection";
@@ -139,6 +140,14 @@ const MemoRelatedSettings = () => {
             ))}
           </div>
         </SettingPanel>
+      </SettingGroup>
+
+      <SettingGroup
+        title={t("setting.memo.import-markdown-zip-group")}
+        description={t("setting.memo.import-markdown-zip-group-description")}
+        showSeparator
+      >
+        <MarkdownZipImportPanel />
       </SettingGroup>
 
       <div className="w-full flex justify-end">

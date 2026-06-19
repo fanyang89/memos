@@ -132,6 +132,7 @@ func (s *APIV1Service) RegisterGateway(ctx context.Context, echoServer *echo.Ech
 	gwGroup := echoServer.Group("")
 	// Register SSE endpoint with same CORS as rest of /api/v1.
 	RegisterSSERoutes(gwGroup, s.SSEHub, s.Store, s.Secret)
+	gwGroup.POST("/api/v1/import/markdown/zip", s.ImportMarkdownZip)
 	handler := echo.WrapHandler(http.MaxBytesHandler(gwMux, maxAPIRequestBytes))
 
 	gwGroup.Any("/api/v1/*", handler)
