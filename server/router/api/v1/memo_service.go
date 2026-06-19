@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/usememos/memos/internal/httpgetter"
+	"github.com/usememos/memos/internal/vector"
 	"github.com/usememos/memos/internal/webhook"
 	v1pb "github.com/usememos/memos/proto/gen/api/v1"
 	storepb "github.com/usememos/memos/proto/gen/store"
@@ -170,6 +171,35 @@ func (s *APIV1Service) SearchMemos(ctx context.Context, request *v1pb.SearchMemo
 	return &v1pb.SearchMemosResponse{Results: results}, nil
 }
 
+// indexMemoAsync enqueues a memo embedding upsert on a detached context so the
+// indexing work does not block the write response or get cancelled when the
+// request ends. Failures are logged but never propagated to the caller.
+// No-op when the vector store is not initialized.
+func (s *APIV1Service) indexMemoAsync(memo *store.Memo) {
+	if s.VectorStore == nil || memo == nil {
+		return
+	}
+	go func() {
+		ctx := context.WithoutCancel(context.Background())
+		sha := vector.ComputeContentSHA(vector.PlainText(memo.Content))
+		if err := s.VectorStore.UpsertMemo(ctx, memo, sha); err != nil {
+			slog.Warn("failed to index memo for semantic search", "err", err, "memoID", memo.ID)
+		}
+	}()
+}
+
+// unindexMemo removes a memo's embedding. Synchronous because it is a local
+// chromem-go operation with no network round-trip. No-op when the vector store
+// is not initialized.
+func (s *APIV1Service) unindexMemo(memoID int32) {
+	if s.VectorStore == nil {
+		return
+	}
+	if err := s.VectorStore.DeleteMemo(context.WithoutCancel(context.Background()), memoID); err != nil {
+		slog.Warn("failed to remove memo from semantic index", "err", err, "memoID", memoID)
+	}
+}
+
 func (s *APIV1Service) CreateMemo(ctx context.Context, request *v1pb.CreateMemoRequest) (*v1pb.Memo, error) {
 	user, err := s.fetchCurrentUser(ctx)
 	if err != nil {
@@ -226,6 +256,7 @@ func (s *APIV1Service) CreateMemo(ctx context.Context, request *v1pb.CreateMemoR
 		}
 		return nil, err
 	}
+	s.indexMemoAsync(memo)
 
 	attachments := []*store.Attachment{}
 
@@ -660,6 +691,7 @@ func (s *APIV1Service) UpdateMemo(ctx context.Context, request *v1pb.UpdateMemoR
 	}
 	if contentUpdated {
 		s.dispatchMemoMentionNotificationsBestEffort(ctx, memo, parentMemo, previousContent)
+		s.indexMemoAsync(memo)
 	}
 	s.dispatchMemoUpdatedSideEffects(ctx, memo, parentMemo, memoMessage)
 
@@ -731,6 +763,7 @@ func (s *APIV1Service) DeleteMemo(ctx context.Context, request *v1pb.DeleteMemoR
 	if err = s.Store.DeleteMemo(ctx, &store.DeleteMemo{ID: memo.ID}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete memo")
 	}
+	s.unindexMemo(memo.ID)
 
 	// Broadcast live refresh event.
 	s.SSEHub.Broadcast(&SSEEvent{
