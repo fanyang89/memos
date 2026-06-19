@@ -942,4 +942,166 @@ func TestUpdateInstanceSetting(t *testing.T) {
 		require.Equal(t, "en", stored.GetTranscription().GetLanguage())
 		require.Equal(t, "names: Alice", stored.GetTranscription().GetPrompt())
 	})
+
+	t.Run("UpdateInstanceSetting - embedding config is stored and round-trips", func(t *testing.T) {
+		ts := NewTestService(t)
+		defer ts.Cleanup()
+
+		hostUser, err := ts.CreateHostUser(ctx, "admin")
+		require.NoError(t, err)
+		adminCtx := ts.CreateUserContext(ctx, hostUser.ID)
+
+		_, err = ts.Service.UpdateInstanceSetting(adminCtx, &v1pb.UpdateInstanceSettingRequest{
+			Setting: &v1pb.InstanceSetting{
+				Name: "instance/settings/AI",
+				Value: &v1pb.InstanceSetting_AiSetting{
+					AiSetting: &v1pb.InstanceSetting_AISetting{
+						Providers: []*v1pb.InstanceSetting_AIProviderConfig{
+							{
+								Id:     "openai-main",
+								Title:  "OpenAI",
+								Type:   v1pb.InstanceSetting_OPENAI,
+								ApiKey: "sk-test",
+							},
+						},
+						Embedding: &v1pb.InstanceSetting_EmbeddingConfig{
+							ProviderId: "openai-main",
+							Model:      "text-embedding-3-small",
+						},
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+
+		stored, err := ts.Store.GetInstanceAISetting(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, stored.GetEmbedding())
+		require.Equal(t, "openai-main", stored.GetEmbedding().GetProviderId())
+		require.Equal(t, "text-embedding-3-small", stored.GetEmbedding().GetModel())
+	})
+
+	t.Run("UpdateInstanceSetting - embedding provider_id must reference an existing provider", func(t *testing.T) {
+		ts := NewTestService(t)
+		defer ts.Cleanup()
+
+		hostUser, err := ts.CreateHostUser(ctx, "admin")
+		require.NoError(t, err)
+		adminCtx := ts.CreateUserContext(ctx, hostUser.ID)
+
+		_, err = ts.Service.UpdateInstanceSetting(adminCtx, &v1pb.UpdateInstanceSettingRequest{
+			Setting: &v1pb.InstanceSetting{
+				Name: "instance/settings/AI",
+				Value: &v1pb.InstanceSetting_AiSetting{
+					AiSetting: &v1pb.InstanceSetting_AISetting{
+						Providers: []*v1pb.InstanceSetting_AIProviderConfig{
+							{
+								Id:     "openai-main",
+								Title:  "OpenAI",
+								Type:   v1pb.InstanceSetting_OPENAI,
+								ApiKey: "sk-test",
+							},
+						},
+						Embedding: &v1pb.InstanceSetting_EmbeddingConfig{
+							ProviderId: "ghost",
+						},
+					},
+				},
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "embedding provider_id")
+	})
+
+	t.Run("UpdateInstanceSetting - embedding is preserved when omitted on update", func(t *testing.T) {
+		ts := NewTestService(t)
+		defer ts.Cleanup()
+
+		hostUser, err := ts.CreateHostUser(ctx, "admin")
+		require.NoError(t, err)
+		adminCtx := ts.CreateUserContext(ctx, hostUser.ID)
+
+		_, err = ts.Service.UpdateInstanceSetting(adminCtx, &v1pb.UpdateInstanceSettingRequest{
+			Setting: &v1pb.InstanceSetting{
+				Name: "instance/settings/AI",
+				Value: &v1pb.InstanceSetting_AiSetting{
+					AiSetting: &v1pb.InstanceSetting_AISetting{
+						Providers: []*v1pb.InstanceSetting_AIProviderConfig{
+							{
+								Id:     "openai-main",
+								Title:  "OpenAI",
+								Type:   v1pb.InstanceSetting_OPENAI,
+								ApiKey: "sk-test",
+							},
+						},
+						Embedding: &v1pb.InstanceSetting_EmbeddingConfig{
+							ProviderId: "openai-main",
+							Model:      "nomic-embed-text",
+						},
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+
+		// Second update omits embedding entirely; it must be preserved.
+		_, err = ts.Service.UpdateInstanceSetting(adminCtx, &v1pb.UpdateInstanceSettingRequest{
+			Setting: &v1pb.InstanceSetting{
+				Name: "instance/settings/AI",
+				Value: &v1pb.InstanceSetting_AiSetting{
+					AiSetting: &v1pb.InstanceSetting_AISetting{
+						Providers: []*v1pb.InstanceSetting_AIProviderConfig{
+							{
+								Id:     "openai-main",
+								Title:  "OpenAI renamed",
+								Type:   v1pb.InstanceSetting_OPENAI,
+								ApiKey: "",
+							},
+						},
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+
+		stored, err := ts.Store.GetInstanceAISetting(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, stored.GetEmbedding())
+		require.Equal(t, "openai-main", stored.GetEmbedding().GetProviderId())
+		require.Equal(t, "nomic-embed-text", stored.GetEmbedding().GetModel())
+	})
+
+	t.Run("UpdateInstanceSetting - embedding model length is capped", func(t *testing.T) {
+		ts := NewTestService(t)
+		defer ts.Cleanup()
+
+		hostUser, err := ts.CreateHostUser(ctx, "admin")
+		require.NoError(t, err)
+		adminCtx := ts.CreateUserContext(ctx, hostUser.ID)
+
+		longModel := strings.Repeat("a", 257)
+		_, err = ts.Service.UpdateInstanceSetting(adminCtx, &v1pb.UpdateInstanceSettingRequest{
+			Setting: &v1pb.InstanceSetting{
+				Name: "instance/settings/AI",
+				Value: &v1pb.InstanceSetting_AiSetting{
+					AiSetting: &v1pb.InstanceSetting_AISetting{
+						Providers: []*v1pb.InstanceSetting_AIProviderConfig{
+							{
+								Id:     "openai-main",
+								Title:  "OpenAI",
+								Type:   v1pb.InstanceSetting_OPENAI,
+								ApiKey: "sk-test",
+							},
+						},
+						Embedding: &v1pb.InstanceSetting_EmbeddingConfig{
+							ProviderId: "openai-main",
+							Model:      longModel,
+						},
+					},
+				},
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "embedding model is too long")
+	})
 }

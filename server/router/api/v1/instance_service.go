@@ -24,6 +24,7 @@ const (
 	maxTranscriptionConfigModelLength    = 256
 	maxTranscriptionConfigLanguageLength = 32
 	maxTranscriptionConfigPromptLength   = 4096
+	maxEmbeddingConfigModelLength        = 256
 	maxBatchGetInstanceSettings          = 100
 )
 
@@ -572,6 +573,7 @@ func convertInstanceAISettingFromStore(setting *storepb.InstanceAISetting) *v1pb
 	aiSetting := &v1pb.InstanceSetting_AISetting{
 		Providers:     make([]*v1pb.InstanceSetting_AIProviderConfig, 0, len(setting.Providers)),
 		Transcription: convertTranscriptionConfigFromStore(setting.GetTranscription()),
+		Embedding:     convertEmbeddingConfigFromStore(setting.GetEmbedding()),
 	}
 	for _, provider := range setting.Providers {
 		if provider == nil {
@@ -598,6 +600,7 @@ func convertInstanceAISettingToStore(setting *v1pb.InstanceSetting_AISetting) *s
 	aiSetting := &storepb.InstanceAISetting{
 		Providers:     make([]*storepb.AIProviderConfig, 0, len(setting.Providers)),
 		Transcription: convertTranscriptionConfigToStore(setting.GetTranscription()),
+		Embedding:     convertEmbeddingConfigToStore(setting.GetEmbedding()),
 	}
 	for _, provider := range setting.Providers {
 		if provider == nil {
@@ -635,6 +638,26 @@ func convertTranscriptionConfigToStore(setting *v1pb.InstanceSetting_Transcripti
 		Model:      setting.GetModel(),
 		Language:   setting.GetLanguage(),
 		Prompt:     setting.GetPrompt(),
+	}
+}
+
+func convertEmbeddingConfigFromStore(setting *storepb.EmbeddingConfig) *v1pb.InstanceSetting_EmbeddingConfig {
+	if setting == nil {
+		return nil
+	}
+	return &v1pb.InstanceSetting_EmbeddingConfig{
+		ProviderId: setting.GetProviderId(),
+		Model:      setting.GetModel(),
+	}
+}
+
+func convertEmbeddingConfigToStore(setting *v1pb.InstanceSetting_EmbeddingConfig) *storepb.EmbeddingConfig {
+	if setting == nil {
+		return nil
+	}
+	return &storepb.EmbeddingConfig{
+		ProviderId: setting.GetProviderId(),
+		Model:      setting.GetModel(),
 	}
 }
 
@@ -711,6 +734,9 @@ func (s *APIV1Service) prepareInstanceAISettingForUpdate(ctx context.Context, se
 	if err := preparePersistedTranscriptionConfig(setting, existing); err != nil {
 		return err
 	}
+	if err := preparePersistedEmbeddingConfig(setting, existing); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -753,6 +779,40 @@ func preparePersistedTranscriptionConfig(setting *storepb.InstanceAISetting, exi
 	}
 	if len(cfg.Prompt) > maxTranscriptionConfigPromptLength {
 		return errors.Errorf("transcription prompt is too long; maximum length is %d characters", maxTranscriptionConfigPromptLength)
+	}
+	return nil
+}
+
+func preparePersistedEmbeddingConfig(setting *storepb.InstanceAISetting, existing *storepb.InstanceAISetting) error {
+	// Preserve the previously stored embedding config when the request omits it,
+	// matching the "absence == keep" semantics used for transcription and API keys.
+	// The preserved config still falls through to validation below.
+	if setting.Embedding == nil && existing != nil {
+		setting.Embedding = existing.GetEmbedding()
+	}
+	if setting.Embedding == nil {
+		return nil
+	}
+
+	cfg := setting.Embedding
+	cfg.ProviderId = strings.TrimSpace(cfg.ProviderId)
+	cfg.Model = strings.TrimSpace(cfg.Model)
+
+	if cfg.ProviderId != "" {
+		referenced := false
+		for _, provider := range setting.Providers {
+			if provider != nil && provider.Id == cfg.ProviderId {
+				referenced = true
+				break
+			}
+		}
+		if !referenced {
+			return errors.Errorf("embedding provider_id %q does not reference any configured provider", cfg.ProviderId)
+		}
+	}
+
+	if len(cfg.Model) > maxEmbeddingConfigModelLength {
+		return errors.Errorf("embedding model is too long; maximum length is %d characters", maxEmbeddingConfigModelLength)
 	}
 	return nil
 }

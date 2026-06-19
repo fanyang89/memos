@@ -28,6 +28,12 @@ type suppressSSEKey struct{}
 
 const maxBatchGetLinkMetadata = 10
 
+const (
+	maxSearchQueryLen = 1024
+	defaultSearchTopK = 20
+	maxSearchTopK     = 100
+)
+
 var fetchHTMLMeta = httpgetter.GetHTMLMeta
 
 func withSuppressSSE(ctx context.Context) context.Context {
@@ -68,6 +74,100 @@ func (s *APIV1Service) checkMemoReadAccess(ctx context.Context, memo *store.Memo
 		}
 	}
 	return nil
+}
+
+// SearchMemos performs semantic search over memo content using the configured
+// embedding provider. Requires the instance AI embedding feature to be
+// configured and the vector store to be initialized at startup.
+func (s *APIV1Service) SearchMemos(ctx context.Context, request *v1pb.SearchMemosRequest) (*v1pb.SearchMemosResponse, error) {
+	user, err := s.fetchCurrentUser(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get user")
+	}
+	if user == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "user not authenticated")
+	}
+
+	query := strings.TrimSpace(request.GetQuery())
+	if query == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "query is required")
+	}
+	if len(query) > maxSearchQueryLen {
+		return nil, status.Errorf(codes.InvalidArgument, "query too long (max %d characters)", maxSearchQueryLen)
+	}
+	// Semantic search does not support content substring predicates; the CEL
+	// filter is reserved for scoping (e.g. creator, visibility) but content.*
+	// would be redundant with vector similarity and is rejected to avoid
+	// confusion.
+	if strings.Contains(request.GetFilter(), "content.") {
+		return nil, status.Errorf(codes.InvalidArgument, "semantic search does not support content filters")
+	}
+
+	if s.VectorStore == nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "semantic search is not configured; set the instance AI embedding provider and restart")
+	}
+
+	// Confirm an embedding config still references a valid provider.
+	setting, err := s.Store.GetInstanceAISetting(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get AI setting")
+	}
+	if setting.GetEmbedding().GetProviderId() == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "semantic search is not configured")
+	}
+
+	topK := int(request.GetTopK())
+	if topK <= 0 {
+		topK = defaultSearchTopK
+	}
+	if topK > maxSearchTopK {
+		topK = maxSearchTopK
+	}
+
+	// Over-fetch to compensate for memos filtered out by read-access checks.
+	fetchK := topK * 2
+	if fetchK > maxSearchTopK {
+		fetchK = maxSearchTopK
+	}
+	where := map[string]string{"creator_id": fmt.Sprintf("%d", user.ID)}
+	scored, err := s.VectorStore.Query(ctx, query, fetchK, where)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "semantic search failed: %v", err)
+	}
+
+	// Resolve memo IDs → memos, enforcing read access per result.
+	memoIDs := make([]int32, 0, len(scored))
+	for _, hit := range scored {
+		memoIDs = append(memoIDs, hit.MemoID)
+	}
+	memos, err := s.Store.ListMemos(ctx, &store.FindMemo{IDList: memoIDs})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to load search results")
+	}
+	byID := make(map[int32]*store.Memo, len(memos))
+	for _, m := range memos {
+		byID[m.ID] = m
+	}
+
+	results := make([]*v1pb.SearchResult, 0, topK)
+	for _, hit := range scored {
+		if len(results) >= topK {
+			break
+		}
+		memo, ok := byID[hit.MemoID]
+		if !ok {
+			continue
+		}
+		if err := s.checkMemoReadAccess(ctx, memo); err != nil {
+			continue
+		}
+		results = append(results, &v1pb.SearchResult{
+			Memo:       MemoNamePrefix + memo.UID,
+			Similarity: hit.Similarity,
+		})
+	}
+
+	return &v1pb.SearchMemosResponse{Results: results}, nil
 }
 
 func (s *APIV1Service) CreateMemo(ctx context.Context, request *v1pb.CreateMemoRequest) (*v1pb.Memo, error) {

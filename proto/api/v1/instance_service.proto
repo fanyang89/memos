@@ -241,6 +241,10 @@ message InstanceSetting {
     // transcription is the speech-to-text feature configuration.
     // When unset or transcription.provider_id is empty, transcription is disabled.
     TranscriptionConfig transcription = 2;
+
+    // embedding is the semantic search feature configuration.
+    // When unset or embedding.provider_id is empty, semantic search is disabled.
+    EmbeddingConfig embedding = 3;
   }
 
   // AIProviderConfig represents one callable AI provider connection.
@@ -281,6 +285,19 @@ message InstanceSetting {
 
     // prompt is a default spelling/vocabulary hint passed to the provider.
     string prompt = 4;
+  }
+
+  // EmbeddingConfig configures the semantic search feature.
+  message EmbeddingConfig {
+    // provider_id references an entry in AISetting.providers[].id.
+    // Empty string means semantic search is disabled.
+    string provider_id = 1;
+
+    // model is the provider-specific embedding model identifier.
+    // Empty string falls back to the engine default.
+    // OPENAI examples: "text-embedding-3-small", "text-embedding-3-large".
+    // Ollama via OpenAI-compat examples: "nomic-embed-text", "bge-m3".
+    string model = 2;
   }
 }
 

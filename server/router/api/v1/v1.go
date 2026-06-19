@@ -11,6 +11,7 @@ import (
 
 	"github.com/usememos/memos/internal/markdown"
 	"github.com/usememos/memos/internal/profile"
+	"github.com/usememos/memos/internal/vector"
 	v1pb "github.com/usememos/memos/proto/gen/api/v1"
 	"github.com/usememos/memos/server/auth"
 	"github.com/usememos/memos/server/notification"
@@ -35,6 +36,11 @@ type APIV1Service struct {
 	MarkdownService         markdown.Service
 	SSEHub                  *SSEHub
 	NotificationEmailSender notification.EmailSender
+	// VectorStore backs the SearchMemos semantic search RPC. nil when the
+	// embedding feature is unconfigured or the vector DB failed to open; in
+	// that case SearchMemos returns FailedPrecondition. Set by server.go after
+	// construction (the value depends on instance AI settings read at startup).
+	VectorStore *vector.Store
 
 	// thumbnailSemaphore limits concurrent thumbnail generation to prevent memory exhaustion
 	thumbnailSemaphore       *semaphore.Weighted

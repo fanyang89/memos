@@ -2799,7 +2799,29 @@ components:
                     description: |-
                         transcription is the speech-to-text feature configuration.
                          When unset or transcription.provider_id is empty, transcription is disabled.
+                embedding:
+                    allOf:
+                        - $ref: '#/components/schemas/InstanceSetting_EmbeddingConfig'
+                    description: |-
+                        embedding is the semantic search feature configuration.
+                         When unset or embedding.provider_id is empty, semantic search is disabled.
             description: AI provider configuration settings.
+        InstanceSetting_EmbeddingConfig:
+            type: object
+            properties:
+                providerId:
+                    type: string
+                    description: |-
+                        provider_id references an entry in AISetting.providers[].id.
+                         Empty string means semantic search is disabled.
+                model:
+                    type: string
+                    description: |-
+                        model is the provider-specific embedding model identifier.
+                         Empty string falls back to the engine default.
+                         OPENAI examples: "text-embedding-3-small", "text-embedding-3-large".
+                         Ollama via OpenAI-compat examples: "nomic-embed-text", "bge-m3".
+            description: EmbeddingConfig configures the semantic search feature.
         InstanceSetting_GeneralSetting:
             type: object
             properties:
