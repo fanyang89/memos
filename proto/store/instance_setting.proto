@@ -155,6 +155,10 @@ message InstanceAISetting {
   // transcription is the speech-to-text feature configuration.
   // When unset or transcription.provider_id is empty, transcription is disabled.
   TranscriptionConfig transcription = 2;
+
+  // embedding is the semantic search feature configuration.
+  // When unset or embedding.provider_id is empty, semantic search is disabled.
+  EmbeddingConfig embedding = 3;
 }
 
 message AIProviderConfig {
@@ -198,4 +202,16 @@ message TranscriptionConfig {
   // may ignore) and folded into the Gemini generation prompt as a "Context and
   // spelling hints" block (which the LLM will treat more literally).
   string prompt = 4;
+}
+
+// EmbeddingConfig configures the semantic search feature.
+message EmbeddingConfig {
+  // provider_id references an entry in InstanceAISetting.providers[].id.
+  // Empty string means semantic search is disabled.
+  string provider_id = 1;
+
+  // model is the provider-specific embedding model identifier.
+  // OPENAI examples: "text-embedding-3-small", "text-embedding-3-large".
+  // Ollama via OpenAI-compat examples: "nomic-embed-text", "bge-m3".
+  string model = 2;
 }

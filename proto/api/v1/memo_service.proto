@@ -137,6 +137,15 @@ service MemoService {
       body: "*"
     };
   }
+  // SearchMemos performs semantic search over memo content using the configured
+  // embedding provider. Requires the instance AI embedding feature to be configured.
+  rpc SearchMemos(SearchMemosRequest) returns (SearchMemosResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos:search"
+      body: "*"
+    };
+    option (google.api.method_signature) = "query";
+  }
 }
 
 enum Visibility {
@@ -634,4 +643,31 @@ message LinkMetadata {
 
   // The link image URL.
   string image = 4;
+}
+
+message SearchMemosRequest {
+  // Required. The natural language search query.
+  string query = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. The maximum number of results to return.
+  // Default 20, maximum 100; values above 100 are coerced to 100.
+  int32 top_k = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. A CEL filter to scope the search (same syntax as ListMemos.filter).
+  // Applied as a post-filter on the SQL store after vector retrieval.
+  string filter = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message SearchMemosResponse {
+  repeated SearchResult results = 1;
+}
+
+message SearchResult {
+  // The memo resource name, e.g. "memos/{id}".
+  string memo = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "memos.api.v1/Memo"}
+  ];
+  // Cosine similarity in [0, 1].
+  float similarity = 2;
 }

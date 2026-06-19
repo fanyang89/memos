@@ -89,6 +89,8 @@ const (
 	// MemoServiceBatchGetLinkMetadataProcedure is the fully-qualified name of the MemoService's
 	// BatchGetLinkMetadata RPC.
 	MemoServiceBatchGetLinkMetadataProcedure = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
+	// MemoServiceSearchMemosProcedure is the fully-qualified name of the MemoService's SearchMemos RPC.
+	MemoServiceSearchMemosProcedure = "/memos.api.v1.MemoService/SearchMemos"
 )
 
 // MemoServiceClient is a client for the memos.api.v1.MemoService service.
@@ -134,6 +136,9 @@ type MemoServiceClient interface {
 	GetLinkMetadata(context.Context, *connect.Request[v1.GetLinkMetadataRequest]) (*connect.Response[v1.LinkMetadata], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
+	// SearchMemos performs semantic search over memo content using the configured
+	// embedding provider. Requires the instance AI embedding feature to be configured.
+	SearchMemos(context.Context, *connect.Request[v1.SearchMemosRequest]) (*connect.Response[v1.SearchMemosResponse], error)
 }
 
 // NewMemoServiceClient constructs a client for the memos.api.v1.MemoService service. By default, it
@@ -267,6 +272,12 @@ func NewMemoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(memoServiceMethods.ByName("BatchGetLinkMetadata")),
 			connect.WithClientOptions(opts...),
 		),
+		searchMemos: connect.NewClient[v1.SearchMemosRequest, v1.SearchMemosResponse](
+			httpClient,
+			baseURL+MemoServiceSearchMemosProcedure,
+			connect.WithSchema(memoServiceMethods.ByName("SearchMemos")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -292,6 +303,7 @@ type memoServiceClient struct {
 	getMemoByShare       *connect.Client[v1.GetMemoByShareRequest, v1.Memo]
 	getLinkMetadata      *connect.Client[v1.GetLinkMetadataRequest, v1.LinkMetadata]
 	batchGetLinkMetadata *connect.Client[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse]
+	searchMemos          *connect.Client[v1.SearchMemosRequest, v1.SearchMemosResponse]
 }
 
 // CreateMemo calls memos.api.v1.MemoService.CreateMemo.
@@ -394,6 +406,11 @@ func (c *memoServiceClient) BatchGetLinkMetadata(ctx context.Context, req *conne
 	return c.batchGetLinkMetadata.CallUnary(ctx, req)
 }
 
+// SearchMemos calls memos.api.v1.MemoService.SearchMemos.
+func (c *memoServiceClient) SearchMemos(ctx context.Context, req *connect.Request[v1.SearchMemosRequest]) (*connect.Response[v1.SearchMemosResponse], error) {
+	return c.searchMemos.CallUnary(ctx, req)
+}
+
 // MemoServiceHandler is an implementation of the memos.api.v1.MemoService service.
 type MemoServiceHandler interface {
 	// CreateMemo creates a memo.
@@ -437,6 +454,9 @@ type MemoServiceHandler interface {
 	GetLinkMetadata(context.Context, *connect.Request[v1.GetLinkMetadataRequest]) (*connect.Response[v1.LinkMetadata], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
+	// SearchMemos performs semantic search over memo content using the configured
+	// embedding provider. Requires the instance AI embedding feature to be configured.
+	SearchMemos(context.Context, *connect.Request[v1.SearchMemosRequest]) (*connect.Response[v1.SearchMemosResponse], error)
 }
 
 // NewMemoServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -566,6 +586,12 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(memoServiceMethods.ByName("BatchGetLinkMetadata")),
 		connect.WithHandlerOptions(opts...),
 	)
+	memoServiceSearchMemosHandler := connect.NewUnaryHandler(
+		MemoServiceSearchMemosProcedure,
+		svc.SearchMemos,
+		connect.WithSchema(memoServiceMethods.ByName("SearchMemos")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memos.api.v1.MemoService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MemoServiceCreateMemoProcedure:
@@ -608,6 +634,8 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 			memoServiceGetLinkMetadataHandler.ServeHTTP(w, r)
 		case MemoServiceBatchGetLinkMetadataProcedure:
 			memoServiceBatchGetLinkMetadataHandler.ServeHTTP(w, r)
+		case MemoServiceSearchMemosProcedure:
+			memoServiceSearchMemosHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -695,4 +723,8 @@ func (UnimplementedMemoServiceHandler) GetLinkMetadata(context.Context, *connect
 
 func (UnimplementedMemoServiceHandler) BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.BatchGetLinkMetadata is not implemented"))
+}
+
+func (UnimplementedMemoServiceHandler) SearchMemos(context.Context, *connect.Request[v1.SearchMemosRequest]) (*connect.Response[v1.SearchMemosResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.SearchMemos is not implemented"))
 }
