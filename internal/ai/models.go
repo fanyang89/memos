@@ -9,6 +9,9 @@ const (
 	DefaultGeminiTranscriptionModel = "gemini-2.5-flash"
 	// DefaultOpenAIEmbeddingModel is the built-in OpenAI embedding model.
 	DefaultOpenAIEmbeddingModel = "text-embedding-3-small"
+	// DefaultOpenAIVisionModel is the built-in OpenAI-compatible vision model.
+	// For Ollama deployments, users should usually configure a local model such as qwen3-vl:8b.
+	DefaultOpenAIVisionModel = "qwen3-vl:8b"
 )
 
 // DefaultTranscriptionModel returns the built-in transcription model for a provider.
@@ -32,6 +35,18 @@ func DefaultEmbeddingModel(providerType ProviderType) (string, error) {
 		return DefaultOpenAIEmbeddingModel, nil
 	case ProviderGemini:
 		return "", errors.Wrap(ErrCapabilityUnsupported, "gemini embeddings not wired")
+	default:
+		return "", errors.Wrapf(ErrCapabilityUnsupported, "provider type %q", providerType)
+	}
+}
+
+// DefaultVisionModel returns the built-in vision model for a provider.
+func DefaultVisionModel(providerType ProviderType) (string, error) {
+	switch providerType {
+	case ProviderOpenAI:
+		return DefaultOpenAIVisionModel, nil
+	case ProviderGemini:
+		return "", errors.Wrap(ErrCapabilityUnsupported, "gemini image search not wired")
 	default:
 		return "", errors.Wrapf(ErrCapabilityUnsupported, "provider type %q", providerType)
 	}

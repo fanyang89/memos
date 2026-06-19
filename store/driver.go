@@ -24,6 +24,9 @@ type Driver interface {
 	UpdateAttachment(ctx context.Context, update *UpdateAttachment) error
 	DeleteAttachment(ctx context.Context, delete *DeleteAttachment) error
 	DeleteAttachments(ctx context.Context, deletes []*DeleteAttachment) error
+	UpsertAttachmentSearchIndex(ctx context.Context, upsert *AttachmentSearchIndex) error
+	ListAttachmentSearchIndexes(ctx context.Context, find *FindAttachmentSearchIndex) ([]*AttachmentSearchIndex, error)
+	DeleteAttachmentSearchIndex(ctx context.Context, attachmentID int32) error
 
 	// Memo model related methods.
 	CreateMemo(ctx context.Context, create *Memo) (*Memo, error)

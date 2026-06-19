@@ -25,6 +25,13 @@ service AttachmentService {
   rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse) {
     option (google.api.http) = {get: "/api/v1/attachments"};
   }
+  // SearchAttachments searches image attachments by OCR text and semantic meaning.
+  rpc SearchAttachments(SearchAttachmentsRequest) returns (SearchAttachmentsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/attachments:search"
+      body: "*"
+    };
+  }
   // GetAttachment returns an attachment by name.
   rpc GetAttachment(GetAttachmentRequest) returns (Attachment) {
     option (google.api.http) = {get: "/api/v1/{name=attachments/*}"};
@@ -152,6 +159,34 @@ message ListAttachmentsResponse {
 
   // The total count of attachments (may be approximate).
   int32 total_size = 3;
+}
+
+message SearchAttachmentsRequest {
+  // Required. The natural language search query.
+  string query = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. The maximum number of results to return.
+  // Default 20, maximum 100; values above 100 are coerced to 100.
+  int32 top_k = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. A CEL filter to scope the search (same syntax as ListAttachments.filter).
+  string filter = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message SearchAttachmentsResponse {
+  repeated SearchAttachmentResult results = 1;
+}
+
+message SearchAttachmentResult {
+  Attachment attachment = 1 [(google.api.field_behavior) = REQUIRED];
+  // Cosine similarity in [0, 1] from the best matching chunk.
+  float similarity = 2;
+  // Plain text snippet from the best matching chunk.
+  string snippet = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Zero-based index of the best matching chunk within the attachment search text.
+  int32 chunk_index = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Relative text score from filename/OCR/caption matching.
+  float text_score = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
 message GetAttachmentRequest {

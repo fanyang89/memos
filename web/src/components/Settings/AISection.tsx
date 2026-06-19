@@ -19,6 +19,8 @@ import {
   InstanceSetting_AISettingSchema,
   InstanceSetting_EmbeddingConfig,
   InstanceSetting_EmbeddingConfigSchema,
+  InstanceSetting_ImageSearchConfig,
+  InstanceSetting_ImageSearchConfigSchema,
   InstanceSetting_Key,
   InstanceSetting_TranscriptionConfig,
   InstanceSetting_TranscriptionConfigSchema,
@@ -51,6 +53,12 @@ type LocalTranscription = {
 type LocalEmbedding = {
   providerId: string;
   model: string;
+};
+
+type LocalImageSearch = {
+  providerId: string;
+  visionModel: string;
+  prompt: string;
 };
 
 const providerTypeOptions = [InstanceSetting_AIProviderType.OPENAI, InstanceSetting_AIProviderType.GEMINI];
@@ -90,6 +98,12 @@ const toLocalEmbedding = (config: InstanceSetting_EmbeddingConfig | undefined): 
   model: config?.model ?? "",
 });
 
+const toLocalImageSearch = (config: InstanceSetting_ImageSearchConfig | undefined): LocalImageSearch => ({
+  providerId: config?.providerId ?? "",
+  visionModel: config?.visionModel ?? "",
+  prompt: config?.prompt ?? "",
+});
+
 const newProvider = (): LocalAIProvider => ({
   id: createProviderID(),
   title: "",
@@ -123,6 +137,13 @@ const toEmbeddingConfig = (embedding: LocalEmbedding) =>
     model: embedding.model.trim(),
   });
 
+const toImageSearchConfig = (imageSearch: LocalImageSearch) =>
+  create(InstanceSetting_ImageSearchConfigSchema, {
+    providerId: imageSearch.providerId,
+    visionModel: imageSearch.visionModel.trim(),
+    prompt: imageSearch.prompt.trim(),
+  });
+
 const AISection = () => {
   const t = useTranslate();
   const saveInstanceSetting = useInstanceSettingUpdater();
@@ -130,6 +151,7 @@ const AISection = () => {
   const [providers, setProviders] = useState<LocalAIProvider[]>(() => originalSetting.providers.map(toLocalProvider));
   const [transcription, setTranscription] = useState<LocalTranscription>(() => toLocalTranscription(originalSetting.transcription));
   const [embedding, setEmbedding] = useState<LocalEmbedding>(() => toLocalEmbedding(originalSetting.embedding));
+  const [imageSearch, setImageSearch] = useState<LocalImageSearch>(() => toLocalImageSearch(originalSetting.imageSearch));
   const [editingProvider, setEditingProvider] = useState<LocalAIProvider | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<LocalAIProvider | undefined>();
 
@@ -159,11 +181,23 @@ const AISection = () => {
     }
   }, [originalSetting.embedding]);
 
+  const lastSyncedImageSearch = useRef<LocalImageSearch>(toLocalImageSearch(originalSetting.imageSearch));
+  useEffect(() => {
+    const next = toLocalImageSearch(originalSetting.imageSearch);
+    if (!isEqual(lastSyncedImageSearch.current, next)) {
+      setImageSearch(next);
+      lastSyncedImageSearch.current = next;
+    }
+  }, [originalSetting.imageSearch]);
+
   const originalTranscription = useMemo(() => toLocalTranscription(originalSetting.transcription), [originalSetting.transcription]);
   const transcriptionHasChanges = !isEqual(transcription, originalTranscription);
 
   const originalEmbedding = useMemo(() => toLocalEmbedding(originalSetting.embedding), [originalSetting.embedding]);
   const embeddingHasChanges = !isEqual(embedding, originalEmbedding);
+
+  const originalImageSearch = useMemo(() => toLocalImageSearch(originalSetting.imageSearch), [originalSetting.imageSearch]);
+  const imageSearchHasChanges = !isEqual(imageSearch, originalImageSearch);
 
   const transcriptionProviderRef = useMemo(
     () => providers.find((provider) => provider.id === transcription.providerId),
@@ -175,6 +209,11 @@ const AISection = () => {
     [providers, embedding.providerId],
   );
 
+  const imageSearchProviderRef = useMemo(
+    () => providers.find((provider) => provider.id === imageSearch.providerId),
+    [providers, imageSearch.providerId],
+  );
+
   // Persists the AI setting using a specific providers list and transcription
   // value. Provider operations pass originalSetting.transcription so an
   // in-progress transcription draft is never accidentally committed.
@@ -182,6 +221,7 @@ const AISection = () => {
     nextProviders: LocalAIProvider[],
     nextTranscription: InstanceSetting_TranscriptionConfig | undefined,
     nextEmbedding: InstanceSetting_EmbeddingConfig | undefined,
+    nextImageSearch: InstanceSetting_ImageSearchConfig | undefined,
     errorContext: string,
   ) => {
     return saveInstanceSetting({
@@ -194,6 +234,7 @@ const AISection = () => {
             providers: nextProviders.map(toProviderConfig),
             transcription: nextTranscription,
             embedding: nextEmbedding,
+            imageSearch: nextImageSearch,
           }),
         },
       }),
@@ -228,7 +269,13 @@ const AISection = () => {
       ? providers.map((item) => (item.id === normalizedProvider.id ? normalizedProvider : item))
       : [...providers, normalizedProvider];
 
-    const ok = await persistAISetting(nextProviders, originalSetting.transcription, originalSetting.embedding, "Update AI provider");
+    const ok = await persistAISetting(
+      nextProviders,
+      originalSetting.transcription,
+      originalSetting.embedding,
+      originalSetting.imageSearch,
+      "Update AI provider",
+    );
     if (!ok) return;
     setProviders(nextProviders);
     setEditingProvider(undefined);
@@ -252,8 +299,13 @@ const AISection = () => {
       persistedEmbedding && persistedEmbedding.providerId === target.id
         ? create(InstanceSetting_EmbeddingConfigSchema, {})
         : persistedEmbedding;
+    const persistedImageSearch = originalSetting.imageSearch;
+    const nextImageSearch =
+      persistedImageSearch && persistedImageSearch.providerId === target.id
+        ? create(InstanceSetting_ImageSearchConfigSchema, {})
+        : persistedImageSearch;
 
-    const ok = await persistAISetting(nextProviders, nextTranscription, nextEmbedding, "Delete AI provider");
+    const ok = await persistAISetting(nextProviders, nextTranscription, nextEmbedding, nextImageSearch, "Delete AI provider");
     if (!ok) return;
     setProviders(nextProviders);
     if (transcription.providerId === target.id) {
@@ -261,6 +313,9 @@ const AISection = () => {
     }
     if (embedding.providerId === target.id) {
       setEmbedding((prev) => ({ ...prev, providerId: "" }));
+    }
+    if (imageSearch.providerId === target.id) {
+      setImageSearch((prev) => ({ ...prev, providerId: "" }));
     }
     setDeleteTarget(undefined);
   };
@@ -270,7 +325,13 @@ const AISection = () => {
       toast.error(t("setting.ai.transcription-empty-providers"));
       return;
     }
-    await persistAISetting(providers, toTranscriptionConfig(transcription), originalSetting.embedding, "Update transcription");
+    await persistAISetting(
+      providers,
+      toTranscriptionConfig(transcription),
+      originalSetting.embedding,
+      originalSetting.imageSearch,
+      "Update transcription",
+    );
   };
 
   const handleSaveEmbedding = async () => {
@@ -278,7 +339,27 @@ const AISection = () => {
       toast.error(t("setting.ai.embedding-empty-providers"));
       return;
     }
-    await persistAISetting(providers, originalSetting.transcription, toEmbeddingConfig(embedding), "Update embedding");
+    await persistAISetting(
+      providers,
+      originalSetting.transcription,
+      toEmbeddingConfig(embedding),
+      originalSetting.imageSearch,
+      "Update embedding",
+    );
+  };
+
+  const handleSaveImageSearch = async () => {
+    if (imageSearch.providerId && !imageSearchProviderRef) {
+      toast.error(t("setting.ai.image-search-empty-providers"));
+      return;
+    }
+    await persistAISetting(
+      providers,
+      originalSetting.transcription,
+      originalSetting.embedding,
+      toImageSearchConfig(imageSearch),
+      "Update image search",
+    );
   };
 
   return (
@@ -399,6 +480,24 @@ const AISection = () => {
         }
       >
         <EmbeddingForm providers={providers} embedding={embedding} onChange={setEmbedding} referencedProvider={embeddingProviderRef} />
+      </SettingGroup>
+
+      <SettingGroup
+        title={t("setting.ai.image-search-title")}
+        description={t("setting.ai.image-search-description")}
+        showSeparator
+        actions={
+          <Button disabled={!imageSearchHasChanges} onClick={handleSaveImageSearch}>
+            {t("common.save")}
+          </Button>
+        }
+      >
+        <ImageSearchForm
+          providers={providers}
+          imageSearch={imageSearch}
+          onChange={setImageSearch}
+          referencedProvider={imageSearchProviderRef}
+        />
       </SettingGroup>
 
       <AIProviderDialog
@@ -566,6 +665,76 @@ const EmbeddingForm = ({ providers, embedding, referencedProvider, onChange }: E
           maxLength={256}
         />
         <p className="text-xs text-muted-foreground">{t("setting.ai.embedding-model-help")}</p>
+      </div>
+    </div>
+  );
+};
+
+interface ImageSearchFormProps {
+  providers: LocalAIProvider[];
+  imageSearch: LocalImageSearch;
+  referencedProvider: LocalAIProvider | undefined;
+  onChange: (next: LocalImageSearch) => void;
+}
+
+const ImageSearchForm = ({ providers, imageSearch, referencedProvider, onChange }: ImageSearchFormProps) => {
+  const t = useTranslate();
+  const noProviders = providers.length === 0;
+
+  const update = (partial: Partial<LocalImageSearch>) => {
+    onChange({ ...imageSearch, ...partial });
+  };
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl">
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label>{t("setting.ai.image-search-provider")}</Label>
+        <Select
+          value={imageSearch.providerId || "__none__"}
+          onValueChange={(value) => update({ providerId: value === "__none__" ? "" : value })}
+          disabled={noProviders}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">{t("setting.ai.image-search-no-provider")}</SelectItem>
+            {providers.map((provider) => (
+              <SelectItem key={provider.id} value={provider.id}>
+                {provider.title || provider.id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {noProviders && <p className="text-xs text-muted-foreground">{t("setting.ai.image-search-empty-providers")}</p>}
+        {referencedProvider && !referencedProvider.apiKeySet && (
+          <p className="text-xs text-destructive">{t("setting.ai.image-search-warning-no-key")}</p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label>{t("setting.ai.image-search-model")}</Label>
+        <Input
+          value={imageSearch.visionModel}
+          onChange={(e) => update({ visionModel: e.target.value })}
+          placeholder={t("setting.ai.image-search-model-placeholder")}
+          disabled={!imageSearch.providerId}
+          maxLength={256}
+        />
+        <p className="text-xs text-muted-foreground">{t("setting.ai.image-search-model-help")}</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label>{t("setting.ai.image-search-prompt")}</Label>
+        <Textarea
+          value={imageSearch.prompt}
+          onChange={(e) => update({ prompt: e.target.value })}
+          placeholder={t("setting.ai.image-search-prompt-placeholder")}
+          rows={3}
+          disabled={!imageSearch.providerId}
+          maxLength={4096}
+        />
+        <p className="text-xs text-muted-foreground">{t("setting.ai.image-search-prompt-help")}</p>
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AttachmentService_CreateAttachment_FullMethodName       = "/memos.api.v1.AttachmentService/CreateAttachment"
 	AttachmentService_ListAttachments_FullMethodName        = "/memos.api.v1.AttachmentService/ListAttachments"
+	AttachmentService_SearchAttachments_FullMethodName      = "/memos.api.v1.AttachmentService/SearchAttachments"
 	AttachmentService_GetAttachment_FullMethodName          = "/memos.api.v1.AttachmentService/GetAttachment"
 	AttachmentService_UpdateAttachment_FullMethodName       = "/memos.api.v1.AttachmentService/UpdateAttachment"
 	AttachmentService_DeleteAttachment_FullMethodName       = "/memos.api.v1.AttachmentService/DeleteAttachment"
@@ -36,6 +37,8 @@ type AttachmentServiceClient interface {
 	CreateAttachment(ctx context.Context, in *CreateAttachmentRequest, opts ...grpc.CallOption) (*Attachment, error)
 	// ListAttachments lists all attachments.
 	ListAttachments(ctx context.Context, in *ListAttachmentsRequest, opts ...grpc.CallOption) (*ListAttachmentsResponse, error)
+	// SearchAttachments searches image attachments by OCR text and semantic meaning.
+	SearchAttachments(ctx context.Context, in *SearchAttachmentsRequest, opts ...grpc.CallOption) (*SearchAttachmentsResponse, error)
 	// GetAttachment returns an attachment by name.
 	GetAttachment(ctx context.Context, in *GetAttachmentRequest, opts ...grpc.CallOption) (*Attachment, error)
 	// UpdateAttachment updates an attachment.
@@ -68,6 +71,16 @@ func (c *attachmentServiceClient) ListAttachments(ctx context.Context, in *ListA
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListAttachmentsResponse)
 	err := c.cc.Invoke(ctx, AttachmentService_ListAttachments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *attachmentServiceClient) SearchAttachments(ctx context.Context, in *SearchAttachmentsRequest, opts ...grpc.CallOption) (*SearchAttachmentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchAttachmentsResponse)
+	err := c.cc.Invoke(ctx, AttachmentService_SearchAttachments_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +135,8 @@ type AttachmentServiceServer interface {
 	CreateAttachment(context.Context, *CreateAttachmentRequest) (*Attachment, error)
 	// ListAttachments lists all attachments.
 	ListAttachments(context.Context, *ListAttachmentsRequest) (*ListAttachmentsResponse, error)
+	// SearchAttachments searches image attachments by OCR text and semantic meaning.
+	SearchAttachments(context.Context, *SearchAttachmentsRequest) (*SearchAttachmentsResponse, error)
 	// GetAttachment returns an attachment by name.
 	GetAttachment(context.Context, *GetAttachmentRequest) (*Attachment, error)
 	// UpdateAttachment updates an attachment.
@@ -145,6 +160,9 @@ func (UnimplementedAttachmentServiceServer) CreateAttachment(context.Context, *C
 }
 func (UnimplementedAttachmentServiceServer) ListAttachments(context.Context, *ListAttachmentsRequest) (*ListAttachmentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListAttachments not implemented")
+}
+func (UnimplementedAttachmentServiceServer) SearchAttachments(context.Context, *SearchAttachmentsRequest) (*SearchAttachmentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchAttachments not implemented")
 }
 func (UnimplementedAttachmentServiceServer) GetAttachment(context.Context, *GetAttachmentRequest) (*Attachment, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAttachment not implemented")
@@ -211,6 +229,24 @@ func _AttachmentService_ListAttachments_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AttachmentServiceServer).ListAttachments(ctx, req.(*ListAttachmentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AttachmentService_SearchAttachments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchAttachmentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AttachmentServiceServer).SearchAttachments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AttachmentService_SearchAttachments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AttachmentServiceServer).SearchAttachments(ctx, req.(*SearchAttachmentsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -301,6 +337,10 @@ var AttachmentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListAttachments",
 			Handler:    _AttachmentService_ListAttachments_Handler,
+		},
+		{
+			MethodName: "SearchAttachments",
+			Handler:    _AttachmentService_SearchAttachments_Handler,
 		},
 		{
 			MethodName: "GetAttachment",

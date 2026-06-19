@@ -16,7 +16,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/usememos/memos/internal/ai"
-	"github.com/usememos/memos/internal/ai/embeddings/openai"
+	embeddingsopenai "github.com/usememos/memos/internal/ai/embeddings/openai"
+	"github.com/usememos/memos/internal/ai/vision"
+	visionopenai "github.com/usememos/memos/internal/ai/vision/openai"
 	"github.com/usememos/memos/internal/profile"
 	"github.com/usememos/memos/internal/vector"
 	storepb "github.com/usememos/memos/proto/gen/store"
@@ -25,6 +27,7 @@ import (
 	"github.com/usememos/memos/server/router/frontend"
 	"github.com/usememos/memos/server/router/mcp"
 	"github.com/usememos/memos/server/router/rss"
+	"github.com/usememos/memos/server/runner/attachmentindex"
 	"github.com/usememos/memos/server/runner/memoindex"
 	"github.com/usememos/memos/server/runner/s3presign"
 	"github.com/usememos/memos/store"
@@ -41,10 +44,17 @@ type Server struct {
 	// the persistent vector DB failed to open; in that case the memoindex
 	// runner is skipped and SearchMemos returns FailedPrecondition.
 	VectorStore *vector.Store
+	// AttachmentVectorStore backs attachment image semantic search.
+	AttachmentVectorStore *vector.AttachmentStore
+	ImageAnalyzer         vision.Analyzer
+	imageVisionProviderID string
+	imageVisionModel      string
+	imageSearchPrompt     string
 
 	echoServer *echo.Echo
 	httpServer *http.Server
 	sseHub     *apiv1.SSEHub
+	apiV1      *apiv1.APIV1Service
 
 	backgroundRunnerCancels []context.CancelFunc
 	backgroundRunnerWG      sync.WaitGroup
@@ -83,6 +93,7 @@ func NewServer(ctx context.Context, profile *profile.Profile, store *store.Store
 	rootGroup := echoServer.Group("")
 
 	apiV1Service := apiv1.NewAPIV1Service(s.Secret, profile, store)
+	s.apiV1 = apiV1Service
 	s.sseHub = apiV1Service.SSEHub
 
 	// Initialize the semantic-search vector store from the persisted AI
@@ -90,6 +101,8 @@ func NewServer(ctx context.Context, profile *profile.Profile, store *store.Store
 	// runner degrade to disabled when VectorStore stays nil.
 	s.VectorStore = s.initVectorStore(ctx)
 	apiV1Service.VectorStore = s.VectorStore
+	s.AttachmentVectorStore, s.ImageAnalyzer, s.imageVisionProviderID, s.imageVisionModel, s.imageSearchPrompt = s.initAttachmentSearch(ctx)
+	apiV1Service.AttachmentVectorStore = s.AttachmentVectorStore
 
 	// Register HTTP file server routes BEFORE gRPC-Gateway to ensure proper range request handling for Safari.
 	// This uses native HTTP serving (http.ServeContent) instead of gRPC for video/audio files.
@@ -206,6 +219,33 @@ func (s *Server) startBackgroundRunners(ctx context.Context) {
 		slog.Info("memoindex disabled: embedding not configured or vector store init failed")
 	}
 
+	if s.AttachmentVectorStore != nil && s.ImageAnalyzer != nil && s.apiV1 != nil {
+		indexCtx, indexCancel := context.WithCancel(ctx)
+		s.backgroundRunnerCancels = append(s.backgroundRunnerCancels, indexCancel)
+
+		attachmentindexRunner := attachmentindex.NewRunner(
+			s.Store,
+			s.AttachmentVectorStore,
+			s.ImageAnalyzer,
+			s.apiV1,
+			s.Profile.MemoIndexInterval,
+			s.imageVisionProviderID,
+			s.imageVisionModel,
+			s.imageSearchPrompt,
+		)
+		attachmentindexRunner.RunOnce(ctx)
+
+		s.backgroundRunnerWG.Add(1)
+		go func() {
+			defer s.backgroundRunnerWG.Done()
+			attachmentindexRunner.Run(indexCtx)
+			slog.Info("attachmentindex runner stopped")
+		}()
+		slog.Info("attachmentindex runner started", "interval", s.Profile.MemoIndexInterval.String(), "vision_model", s.imageVisionModel)
+	} else {
+		slog.Info("attachmentindex disabled: image search or embedding not configured")
+	}
+
 	slog.Info("background runners started")
 }
 
@@ -256,7 +296,7 @@ func (s *Server) initVectorStore(ctx context.Context) *vector.Store {
 		}
 	}
 
-	embedder, err := openai.New(*provider, model)
+	embedder, err := embeddingsopenai.New(*provider, model)
 	if err != nil {
 		slog.Error("failed to construct embedding client, semantic search disabled", "error", err)
 		return nil
@@ -268,6 +308,91 @@ func (s *Server) initVectorStore(ctx context.Context) *vector.Store {
 	}
 	slog.Info("vector store initialized", "model", model, "provider", provider.ID)
 	return vstore
+}
+
+// initAttachmentSearch builds the attachment-search vector store and image analyzer.
+func (s *Server) initAttachmentSearch(ctx context.Context) (*vector.AttachmentStore, vision.Analyzer, string, string, string) {
+	setting, err := s.Store.GetInstanceAISetting(ctx)
+	if err != nil {
+		slog.Error("failed to get AI setting for attachment search init", "error", err)
+		return nil, nil, "", "", ""
+	}
+	imageCfg := setting.GetImageSearch()
+	if imageCfg.GetProviderId() == "" {
+		return nil, nil, "", "", ""
+	}
+	embCfg := setting.GetEmbedding()
+	if embCfg.GetProviderId() == "" {
+		slog.Warn("attachment search disabled: embedding provider is required")
+		return nil, nil, "", "", ""
+	}
+
+	providers := make([]ai.ProviderConfig, 0, len(setting.GetProviders()))
+	for _, provider := range setting.GetProviders() {
+		if provider == nil {
+			continue
+		}
+		providers = append(providers, ai.ProviderConfig{
+			ID:       provider.GetId(),
+			Title:    provider.GetTitle(),
+			Type:     convertAIProviderTypeFromStore(provider.GetType()),
+			Endpoint: provider.GetEndpoint(),
+			APIKey:   provider.GetApiKey(),
+		})
+	}
+	embeddingProvider, err := ai.FindProvider(providers, embCfg.GetProviderId())
+	if err != nil {
+		slog.Warn("attachment search embedding provider not found", "provider_id", embCfg.GetProviderId())
+		return nil, nil, "", "", ""
+	}
+	if embeddingProvider.Type != ai.ProviderOpenAI {
+		slog.Warn("attachment search embedding provider type unsupported", "type", embeddingProvider.Type)
+		return nil, nil, "", "", ""
+	}
+	visionProvider, err := ai.FindProvider(providers, imageCfg.GetProviderId())
+	if err != nil {
+		slog.Warn("attachment search vision provider not found", "provider_id", imageCfg.GetProviderId())
+		return nil, nil, "", "", ""
+	}
+	if visionProvider.Type != ai.ProviderOpenAI {
+		slog.Warn("attachment search vision provider type unsupported", "type", visionProvider.Type)
+		return nil, nil, "", "", ""
+	}
+
+	embeddingModel := embCfg.GetModel()
+	if embeddingModel == "" {
+		embeddingModel, err = ai.DefaultEmbeddingModel(embeddingProvider.Type)
+		if err != nil {
+			slog.Warn("attachment search embedding model unresolved", "error", err)
+			return nil, nil, "", "", ""
+		}
+	}
+	visionModel := imageCfg.GetVisionModel()
+	if visionModel == "" {
+		visionModel, err = ai.DefaultVisionModel(visionProvider.Type)
+		if err != nil {
+			slog.Warn("attachment search vision model unresolved", "error", err)
+			return nil, nil, "", "", ""
+		}
+	}
+
+	embedder, err := embeddingsopenai.New(*embeddingProvider, embeddingModel)
+	if err != nil {
+		slog.Error("failed to construct attachment embedding client", "error", err)
+		return nil, nil, "", "", ""
+	}
+	attachmentVectorStore, err := vector.NewPersistentAttachmentStore(ctx, s.Profile.Data, embeddingModel, embedder)
+	if err != nil {
+		slog.Error("failed to open attachment vector store", "error", err)
+		return nil, nil, "", "", ""
+	}
+	analyzer, err := visionopenai.New(*visionProvider)
+	if err != nil {
+		slog.Error("failed to construct attachment vision client", "error", err)
+		return nil, nil, "", "", ""
+	}
+	slog.Info("attachment search initialized", "embedding_model", embeddingModel, "vision_model", visionModel, "vision_provider", visionProvider.ID)
+	return attachmentVectorStore, analyzer, visionProvider.ID, visionModel, imageCfg.GetPrompt()
 }
 
 // convertAIProviderTypeFromStore maps the store proto provider type to the ai package type.

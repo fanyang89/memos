@@ -48,6 +48,9 @@ troubleshooting.
 - **Chunking**: each memo is stripped to plain text, split with Markdown / Chinese / English
   boundaries, then capped by a token budget. Search ranks chunks first and returns memo-level
   results with the best matching chunk snippet.
+- **Image attachments**: optional image search uses the same local Ollama deployment. Memos sends
+  stored image bytes to an OpenAI-compatible vision model for OCR, captions, tags, and objects,
+  then embeds that extracted text into a separate attachment vector collection.
 
 ---
 
@@ -94,7 +97,19 @@ Note the exact model name — you'll need it in the Memos configuration below.
 > `llama3`, `qwen`, or `gpt-oss` — they don't expose `/v1/embeddings` and the runner
 > will fail with `404 model not found`.
 
-### 3. Run Memos
+### 3. Pull a vision model for image search (optional)
+
+Image attachment search needs a multimodal vision model in addition to the embedding model:
+
+```bash
+ollama pull qwen3-vl:8b
+# or another Ollama vision model that supports image input via /v1/chat/completions
+```
+
+This model is used for OCR and visual descriptions. Embeddings still use the embedding model from
+the previous step.
+
+### 4. Run Memos
 
 Optional: shorten the index interval so you can see backfill activity immediately.
 
@@ -143,7 +158,20 @@ new **Semantic search** section.
 
 Click **Save**.
 
-### Step 3 — Confirm the index is building
+### Step 3 — Configure image search (optional)
+
+On the same **Settings → AI** page, scroll to the **Image search** section.
+
+| Field | Value |
+| --- | --- |
+| Provider | pick `Local Ollama` |
+| Vision model | `qwen3-vl:8b` — must exactly match the name returned by `ollama list` |
+| Extra prompt | optional extraction hints, e.g. `Prefer Chinese tags. Preserve invoice numbers exactly.` |
+
+Click **Save** and restart Memos so the attachment image-search runner and vector store initialize
+from the persisted settings.
+
+### Step 4 — Confirm the index is building
 
 Watch the Memos backend logs. Within one index interval (≤ 30s with the env var above)
 you should see:
@@ -156,6 +184,13 @@ memoindex pass complete upserted=N reconciled_deleted=0 valid_in_sql=N
 `upserted=N` is the count of your existing memos that got embedded in that pass. On
 first enable, `N` equals your total memo count; subsequent passes show small deltas
 as you create or edit memos.
+
+When image search is enabled, you should also see:
+
+```
+attachmentindex runner started interval=30s vision_model=qwen3-vl:8b
+attachmentindex pass complete indexed=N reconciled_deleted=0 valid_in_sql=N
+```
 
 If you see `memoindex disabled: embedding not configured or vector store init failed`
 after saving the config, **restart Memos** — the vector store is initialized at
@@ -191,6 +226,20 @@ production", all of the following queries should surface them:
 - `high availability setup`
 
 Substring search would find none of these without exact word overlap.
+
+## Use image attachment search
+
+Open **Attachments → Media** and use the search box on the right side of the toolbar. When the box
+is empty, Memos shows the normal paginated media library. When you type a query, Memos calls
+`SearchAttachments` and ranks image attachments by a hybrid of OCR/caption text matches and vector
+similarity.
+
+Examples:
+
+- `invoice total`
+- `架构图`
+- `photo with a cat`
+- `whiteboard about kubernetes`
 
 ---
 

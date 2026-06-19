@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { LoaderCircleIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import {
   AttachmentAudioRows,
@@ -71,6 +71,8 @@ const Attachments = () => {
   const md = useMediaQuery("md");
   const deleteUnusedAttachmentsDialog = useDialog();
   const [activeTab, setActiveTab] = useState<AttachmentLibraryTab>("media");
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [previewState, setPreviewState] = useState({ open: false, initialIndex: 0 });
   const [showUnusedSection, setShowUnusedSection] = useState(false);
   const { mutateAsync: batchDeleteAttachments, isPending: isDeletingUnused } = useBatchDeleteAttachments();
@@ -89,7 +91,7 @@ const Attachments = () => {
     refetch,
     stats,
     unusedItems,
-  } = useAttachmentLibrary(i18n.language);
+  } = useAttachmentLibrary(i18n.language, activeTab === "media" ? deferredSearchQuery : "");
 
   const currentItemsCount = useMemo(() => TAB_COUNT_SELECTOR[activeTab](stats), [activeTab, stats]);
 
@@ -160,7 +162,13 @@ const Attachments = () => {
       {!md && <MobileHeader />}
 
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 sm:gap-6 sm:px-6">
-        <AttachmentLibraryToolbar activeTab={activeTab} onTabChange={setActiveTab} stats={stats} />
+        <AttachmentLibraryToolbar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          stats={stats}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+        />
 
         {stats.unused > 0 && (
           <AttachmentLibraryUnusedPanel

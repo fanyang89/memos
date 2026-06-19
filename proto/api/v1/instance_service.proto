@@ -245,6 +245,10 @@ message InstanceSetting {
     // embedding is the semantic search feature configuration.
     // When unset or embedding.provider_id is empty, semantic search is disabled.
     EmbeddingConfig embedding = 3;
+
+    // image_search is the attachment image search feature configuration.
+    // When unset or image_search.provider_id is empty, image search indexing is disabled.
+    ImageSearchConfig image_search = 4;
   }
 
   // AIProviderConfig represents one callable AI provider connection.
@@ -298,6 +302,20 @@ message InstanceSetting {
     // OPENAI examples: "text-embedding-3-small", "text-embedding-3-large".
     // Ollama via OpenAI-compat examples: "nomic-embed-text", "bge-m3".
     string model = 2;
+  }
+
+  // ImageSearchConfig configures attachment image OCR and visual-description indexing.
+  message ImageSearchConfig {
+    // provider_id references an entry in AISetting.providers[].id.
+    // Empty string means image search indexing is disabled.
+    string provider_id = 1;
+
+    // vision_model is the provider-specific multimodal model identifier.
+    // Ollama via OpenAI-compat examples: "qwen3-vl:8b", "qwen2.5vl:7b".
+    string vision_model = 2;
+
+    // prompt is appended to the default extraction instruction.
+    string prompt = 3;
   }
 }
 

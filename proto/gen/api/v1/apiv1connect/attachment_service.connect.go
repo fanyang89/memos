@@ -40,6 +40,9 @@ const (
 	// AttachmentServiceListAttachmentsProcedure is the fully-qualified name of the AttachmentService's
 	// ListAttachments RPC.
 	AttachmentServiceListAttachmentsProcedure = "/memos.api.v1.AttachmentService/ListAttachments"
+	// AttachmentServiceSearchAttachmentsProcedure is the fully-qualified name of the
+	// AttachmentService's SearchAttachments RPC.
+	AttachmentServiceSearchAttachmentsProcedure = "/memos.api.v1.AttachmentService/SearchAttachments"
 	// AttachmentServiceGetAttachmentProcedure is the fully-qualified name of the AttachmentService's
 	// GetAttachment RPC.
 	AttachmentServiceGetAttachmentProcedure = "/memos.api.v1.AttachmentService/GetAttachment"
@@ -60,6 +63,8 @@ type AttachmentServiceClient interface {
 	CreateAttachment(context.Context, *connect.Request[v1.CreateAttachmentRequest]) (*connect.Response[v1.Attachment], error)
 	// ListAttachments lists all attachments.
 	ListAttachments(context.Context, *connect.Request[v1.ListAttachmentsRequest]) (*connect.Response[v1.ListAttachmentsResponse], error)
+	// SearchAttachments searches image attachments by OCR text and semantic meaning.
+	SearchAttachments(context.Context, *connect.Request[v1.SearchAttachmentsRequest]) (*connect.Response[v1.SearchAttachmentsResponse], error)
 	// GetAttachment returns an attachment by name.
 	GetAttachment(context.Context, *connect.Request[v1.GetAttachmentRequest]) (*connect.Response[v1.Attachment], error)
 	// UpdateAttachment updates an attachment.
@@ -93,6 +98,12 @@ func NewAttachmentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(attachmentServiceMethods.ByName("ListAttachments")),
 			connect.WithClientOptions(opts...),
 		),
+		searchAttachments: connect.NewClient[v1.SearchAttachmentsRequest, v1.SearchAttachmentsResponse](
+			httpClient,
+			baseURL+AttachmentServiceSearchAttachmentsProcedure,
+			connect.WithSchema(attachmentServiceMethods.ByName("SearchAttachments")),
+			connect.WithClientOptions(opts...),
+		),
 		getAttachment: connect.NewClient[v1.GetAttachmentRequest, v1.Attachment](
 			httpClient,
 			baseURL+AttachmentServiceGetAttachmentProcedure,
@@ -124,6 +135,7 @@ func NewAttachmentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 type attachmentServiceClient struct {
 	createAttachment       *connect.Client[v1.CreateAttachmentRequest, v1.Attachment]
 	listAttachments        *connect.Client[v1.ListAttachmentsRequest, v1.ListAttachmentsResponse]
+	searchAttachments      *connect.Client[v1.SearchAttachmentsRequest, v1.SearchAttachmentsResponse]
 	getAttachment          *connect.Client[v1.GetAttachmentRequest, v1.Attachment]
 	updateAttachment       *connect.Client[v1.UpdateAttachmentRequest, v1.Attachment]
 	deleteAttachment       *connect.Client[v1.DeleteAttachmentRequest, emptypb.Empty]
@@ -138,6 +150,11 @@ func (c *attachmentServiceClient) CreateAttachment(ctx context.Context, req *con
 // ListAttachments calls memos.api.v1.AttachmentService.ListAttachments.
 func (c *attachmentServiceClient) ListAttachments(ctx context.Context, req *connect.Request[v1.ListAttachmentsRequest]) (*connect.Response[v1.ListAttachmentsResponse], error) {
 	return c.listAttachments.CallUnary(ctx, req)
+}
+
+// SearchAttachments calls memos.api.v1.AttachmentService.SearchAttachments.
+func (c *attachmentServiceClient) SearchAttachments(ctx context.Context, req *connect.Request[v1.SearchAttachmentsRequest]) (*connect.Response[v1.SearchAttachmentsResponse], error) {
+	return c.searchAttachments.CallUnary(ctx, req)
 }
 
 // GetAttachment calls memos.api.v1.AttachmentService.GetAttachment.
@@ -166,6 +183,8 @@ type AttachmentServiceHandler interface {
 	CreateAttachment(context.Context, *connect.Request[v1.CreateAttachmentRequest]) (*connect.Response[v1.Attachment], error)
 	// ListAttachments lists all attachments.
 	ListAttachments(context.Context, *connect.Request[v1.ListAttachmentsRequest]) (*connect.Response[v1.ListAttachmentsResponse], error)
+	// SearchAttachments searches image attachments by OCR text and semantic meaning.
+	SearchAttachments(context.Context, *connect.Request[v1.SearchAttachmentsRequest]) (*connect.Response[v1.SearchAttachmentsResponse], error)
 	// GetAttachment returns an attachment by name.
 	GetAttachment(context.Context, *connect.Request[v1.GetAttachmentRequest]) (*connect.Response[v1.Attachment], error)
 	// UpdateAttachment updates an attachment.
@@ -193,6 +212,12 @@ func NewAttachmentServiceHandler(svc AttachmentServiceHandler, opts ...connect.H
 		AttachmentServiceListAttachmentsProcedure,
 		svc.ListAttachments,
 		connect.WithSchema(attachmentServiceMethods.ByName("ListAttachments")),
+		connect.WithHandlerOptions(opts...),
+	)
+	attachmentServiceSearchAttachmentsHandler := connect.NewUnaryHandler(
+		AttachmentServiceSearchAttachmentsProcedure,
+		svc.SearchAttachments,
+		connect.WithSchema(attachmentServiceMethods.ByName("SearchAttachments")),
 		connect.WithHandlerOptions(opts...),
 	)
 	attachmentServiceGetAttachmentHandler := connect.NewUnaryHandler(
@@ -225,6 +250,8 @@ func NewAttachmentServiceHandler(svc AttachmentServiceHandler, opts ...connect.H
 			attachmentServiceCreateAttachmentHandler.ServeHTTP(w, r)
 		case AttachmentServiceListAttachmentsProcedure:
 			attachmentServiceListAttachmentsHandler.ServeHTTP(w, r)
+		case AttachmentServiceSearchAttachmentsProcedure:
+			attachmentServiceSearchAttachmentsHandler.ServeHTTP(w, r)
 		case AttachmentServiceGetAttachmentProcedure:
 			attachmentServiceGetAttachmentHandler.ServeHTTP(w, r)
 		case AttachmentServiceUpdateAttachmentProcedure:
@@ -248,6 +275,10 @@ func (UnimplementedAttachmentServiceHandler) CreateAttachment(context.Context, *
 
 func (UnimplementedAttachmentServiceHandler) ListAttachments(context.Context, *connect.Request[v1.ListAttachmentsRequest]) (*connect.Response[v1.ListAttachmentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.AttachmentService.ListAttachments is not implemented"))
+}
+
+func (UnimplementedAttachmentServiceHandler) SearchAttachments(context.Context, *connect.Request[v1.SearchAttachmentsRequest]) (*connect.Response[v1.SearchAttachmentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.AttachmentService.SearchAttachments is not implemented"))
 }
 
 func (UnimplementedAttachmentServiceHandler) GetAttachment(context.Context, *connect.Request[v1.GetAttachmentRequest]) (*connect.Response[v1.Attachment], error) {

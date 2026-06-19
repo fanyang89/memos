@@ -25,6 +25,8 @@ const (
 	maxTranscriptionConfigLanguageLength = 32
 	maxTranscriptionConfigPromptLength   = 4096
 	maxEmbeddingConfigModelLength        = 256
+	maxImageSearchConfigModelLength      = 256
+	maxImageSearchConfigPromptLength     = 4096
 	maxBatchGetInstanceSettings          = 100
 )
 
@@ -158,10 +160,16 @@ func (s *APIV1Service) getInstanceSettingByName(ctx context.Context, name string
 		// editor's Transcribe button. Model / language / prompt are
 		// admin-entered defaults that may contain proprietary glossary terms,
 		// so they are redacted from non-admin responses.
-		if ai := result.GetAiSetting(); ai != nil && ai.Transcription != nil {
-			ai.Transcription.Model = ""
-			ai.Transcription.Language = ""
-			ai.Transcription.Prompt = ""
+		if ai := result.GetAiSetting(); ai != nil {
+			if ai.Transcription != nil {
+				ai.Transcription.Model = ""
+				ai.Transcription.Language = ""
+				ai.Transcription.Prompt = ""
+			}
+			if ai.ImageSearch != nil {
+				ai.ImageSearch.VisionModel = ""
+				ai.ImageSearch.Prompt = ""
+			}
 		}
 	}
 	return result, nil
@@ -574,6 +582,7 @@ func convertInstanceAISettingFromStore(setting *storepb.InstanceAISetting) *v1pb
 		Providers:     make([]*v1pb.InstanceSetting_AIProviderConfig, 0, len(setting.Providers)),
 		Transcription: convertTranscriptionConfigFromStore(setting.GetTranscription()),
 		Embedding:     convertEmbeddingConfigFromStore(setting.GetEmbedding()),
+		ImageSearch:   convertImageSearchConfigFromStore(setting.GetImageSearch()),
 	}
 	for _, provider := range setting.Providers {
 		if provider == nil {
@@ -601,6 +610,7 @@ func convertInstanceAISettingToStore(setting *v1pb.InstanceSetting_AISetting) *s
 		Providers:     make([]*storepb.AIProviderConfig, 0, len(setting.Providers)),
 		Transcription: convertTranscriptionConfigToStore(setting.GetTranscription()),
 		Embedding:     convertEmbeddingConfigToStore(setting.GetEmbedding()),
+		ImageSearch:   convertImageSearchConfigToStore(setting.GetImageSearch()),
 	}
 	for _, provider := range setting.Providers {
 		if provider == nil {
@@ -658,6 +668,28 @@ func convertEmbeddingConfigToStore(setting *v1pb.InstanceSetting_EmbeddingConfig
 	return &storepb.EmbeddingConfig{
 		ProviderId: setting.GetProviderId(),
 		Model:      setting.GetModel(),
+	}
+}
+
+func convertImageSearchConfigFromStore(setting *storepb.ImageSearchConfig) *v1pb.InstanceSetting_ImageSearchConfig {
+	if setting == nil {
+		return nil
+	}
+	return &v1pb.InstanceSetting_ImageSearchConfig{
+		ProviderId:  setting.GetProviderId(),
+		VisionModel: setting.GetVisionModel(),
+		Prompt:      setting.GetPrompt(),
+	}
+}
+
+func convertImageSearchConfigToStore(setting *v1pb.InstanceSetting_ImageSearchConfig) *storepb.ImageSearchConfig {
+	if setting == nil {
+		return nil
+	}
+	return &storepb.ImageSearchConfig{
+		ProviderId:  setting.GetProviderId(),
+		VisionModel: setting.GetVisionModel(),
+		Prompt:      setting.GetPrompt(),
 	}
 }
 
@@ -748,6 +780,9 @@ func (s *APIV1Service) prepareInstanceAISettingForUpdate(ctx context.Context, se
 	if err := preparePersistedEmbeddingConfig(setting, existing); err != nil {
 		return err
 	}
+	if err := preparePersistedImageSearchConfig(setting, existing); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -824,6 +859,41 @@ func preparePersistedEmbeddingConfig(setting *storepb.InstanceAISetting, existin
 
 	if len(cfg.Model) > maxEmbeddingConfigModelLength {
 		return errors.Errorf("embedding model is too long; maximum length is %d characters", maxEmbeddingConfigModelLength)
+	}
+	return nil
+}
+
+func preparePersistedImageSearchConfig(setting *storepb.InstanceAISetting, existing *storepb.InstanceAISetting) error {
+	if setting.ImageSearch == nil && existing != nil {
+		setting.ImageSearch = existing.GetImageSearch()
+	}
+	if setting.ImageSearch == nil {
+		return nil
+	}
+
+	cfg := setting.ImageSearch
+	cfg.ProviderId = strings.TrimSpace(cfg.ProviderId)
+	cfg.VisionModel = strings.TrimSpace(cfg.VisionModel)
+	cfg.Prompt = strings.TrimSpace(cfg.Prompt)
+
+	if cfg.ProviderId != "" {
+		referenced := false
+		for _, provider := range setting.Providers {
+			if provider != nil && provider.Id == cfg.ProviderId {
+				referenced = true
+				break
+			}
+		}
+		if !referenced {
+			return errors.Errorf("image search provider_id %q does not reference any configured provider", cfg.ProviderId)
+		}
+	}
+
+	if len(cfg.VisionModel) > maxImageSearchConfigModelLength {
+		return errors.Errorf("image search vision model is too long; maximum length is %d characters", maxImageSearchConfigModelLength)
+	}
+	if len(cfg.Prompt) > maxImageSearchConfigPromptLength {
+		return errors.Errorf("image search prompt is too long; maximum length is %d characters", maxImageSearchConfigPromptLength)
 	}
 	return nil
 }

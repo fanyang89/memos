@@ -7,7 +7,7 @@ import {
   isImageAttachment,
   isVideoAttachment,
 } from "@/components/MemoMetadata/Attachment/attachmentHelpers";
-import { useInfiniteAttachments } from "@/hooks/useAttachmentQueries";
+import { useInfiniteAttachments, useSearchAttachments } from "@/hooks/useAttachmentQueries";
 import type { Attachment } from "@/types/proto/api/v1/attachment_service_pb";
 import { isMotionAttachment } from "@/utils/attachment";
 import { useTranslate } from "@/utils/i18n";
@@ -128,14 +128,28 @@ const groupMediaByMonth = (
     }));
 };
 
-export function useAttachmentLibrary(locale: string) {
+export function useAttachmentLibrary(locale: string, searchQuery = "") {
   const t = useTranslate();
-  const query = useInfiniteAttachments({
-    pageSize: PAGE_SIZE,
-    orderBy: "create_time desc",
-  });
+  const trimmedSearchQuery = searchQuery.trim();
+  const isSearching = trimmedSearchQuery !== "";
+  const query = useInfiniteAttachments(
+    {
+      pageSize: PAGE_SIZE,
+      orderBy: "create_time desc",
+    },
+    {
+      enabled: !isSearching,
+    },
+  );
+  const search = useSearchAttachments({ query: trimmedSearchQuery, topK: PAGE_SIZE }, { enabled: isSearching });
 
-  const attachments = useMemo(() => (query.data?.pages ?? []).flatMap((page) => page.attachments), [query.data?.pages]);
+  const attachments = useMemo(
+    () =>
+      isSearching
+        ? (search.data?.results ?? []).map((result) => result.attachment!)
+        : (query.data?.pages ?? []).flatMap((page) => page.attachments),
+    [isSearching, query.data?.pages, search.data?.results],
+  );
 
   const linkedAttachments = useMemo(
     () => attachments.filter(isLinkedAttachment).sort((a, b) => sortByNewest(toCreatedAt(a), toCreatedAt(b))),
@@ -190,7 +204,19 @@ export function useAttachmentLibrary(locale: string) {
   );
 
   return {
-    ...query,
+    ...(isSearching
+      ? {
+          data: search.data,
+          error: search.error,
+          fetchNextPage: async () => undefined,
+          hasNextPage: false,
+          isError: search.isError,
+          isFetching: search.isFetching,
+          isFetchingNextPage: false,
+          isLoading: search.isLoading,
+          refetch: search.refetch,
+        }
+      : query),
     attachments,
     mediaGroups,
     mediaItems,

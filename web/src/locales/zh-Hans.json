@@ -427,7 +427,19 @@
       "embedding-no-provider": "无 — 语义搜索已禁用",
       "embedding-provider": "供应商",
       "embedding-title": "语义搜索",
-      "embedding-warning-no-key": "所选供应商未设置 API 密钥。请在上方编辑集成信息以添加密钥。"
+      "embedding-warning-no-key": "所选供应商未设置 API 密钥。请在上方编辑集成信息以添加密钥。",
+      "image-search-description": "使用 Ollama/OpenAI 兼容视觉模型，从图片附件中提取 OCR 文本、描述、标签和对象，用于搜索索引。",
+      "image-search-empty-providers": "请先添加一个 AI 集成以启用图片搜索。",
+      "image-search-model": "视觉模型",
+      "image-search-model-help": "填写供应商中的多模态模型标识。Ollama 可尝试 qwen3-vl:8b 或 qwen2.5vl:7b。",
+      "image-search-model-placeholder": "qwen3-vl:8b",
+      "image-search-no-provider": "无 — 图片搜索已禁用",
+      "image-search-prompt": "额外提示词",
+      "image-search-prompt-help": "可选。会追加到默认 OCR 和图片描述提示词之后。",
+      "image-search-prompt-placeholder": "优先输出中文标签。准确保留发票号码。",
+      "image-search-provider": "供应商",
+      "image-search-title": "图片搜索",
+      "image-search-warning-no-key": "所选供应商未设置 API 密钥。请在上方编辑集成信息以添加密钥。"
     },
     "preference": {
       "appearance-description": "选择当前账号使用的界面语言和外观主题。",
@@ -846,6 +858,9 @@
     },
     "errors": {
       "load": "加载附件失败"
+    },
+    "search": {
+      "placeholder": "搜索图片文字或语义…"
     },
     "labels": {
       "live": "实况",

@@ -481,6 +481,14 @@ func (s *ConnectServiceHandler) ListAttachments(ctx context.Context, req *connec
 	return connect.NewResponse(resp), nil
 }
 
+func (s *ConnectServiceHandler) SearchAttachments(ctx context.Context, req *connect.Request[v1pb.SearchAttachmentsRequest]) (*connect.Response[v1pb.SearchAttachmentsResponse], error) {
+	resp, err := s.APIV1Service.SearchAttachments(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (s *ConnectServiceHandler) GetAttachment(ctx context.Context, req *connect.Request[v1pb.GetAttachmentRequest]) (*connect.Response[v1pb.Attachment], error) {
 	resp, err := s.APIV1Service.GetAttachment(ctx, req.Msg)
 	if err != nil {

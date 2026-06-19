@@ -145,6 +145,10 @@ func (s *Store) DeleteAttachment(ctx context.Context, delete *DeleteAttachment) 
 		slog.Warn("Failed to delete attachment storage", slog.Any("err", err))
 	}
 
+	if err := s.driver.DeleteAttachmentSearchIndex(ctx, attachment.ID); err != nil {
+		return errors.Wrap(err, "failed to delete attachment search index")
+	}
+
 	return s.driver.DeleteAttachment(ctx, delete)
 }
 
@@ -162,6 +166,14 @@ func (s *Store) DeleteAttachments(ctx context.Context, attachments []*Attachment
 	}
 	if len(deletes) == 0 {
 		return nil
+	}
+	for _, attachment := range attachments {
+		if attachment == nil {
+			continue
+		}
+		if err := s.driver.DeleteAttachmentSearchIndex(ctx, attachment.ID); err != nil {
+			return errors.Wrap(err, "failed to delete attachment search index")
+		}
 	}
 
 	if err := s.driver.DeleteAttachments(ctx, deletes); err != nil {

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/usememos/memos/internal/profile"
 	"github.com/usememos/memos/internal/storage/s3"
 	"github.com/usememos/memos/internal/util"
+	"github.com/usememos/memos/internal/vector"
 	v1pb "github.com/usememos/memos/proto/gen/api/v1"
 	storepb "github.com/usememos/memos/proto/gen/store"
 	"github.com/usememos/memos/store"
@@ -39,6 +41,7 @@ const (
 	// This is unrelated to maximum upload size limit, which is now set through system setting.
 	MaxUploadBufferSizeBytes = 32 << 20
 	MebiByte                 = 1024 * 1024
+	maxAttachmentSearchFetch = 1000
 	// ThumbnailCacheFolder is the folder name where the thumbnail images are stored.
 	ThumbnailCacheFolder = ".thumbnail_cache"
 
@@ -263,6 +266,150 @@ func (s *APIV1Service) ListAttachments(ctx context.Context, request *v1pb.ListAt
 	return response, nil
 }
 
+func (s *APIV1Service) SearchAttachments(ctx context.Context, request *v1pb.SearchAttachmentsRequest) (*v1pb.SearchAttachmentsResponse, error) {
+	user, err := s.fetchCurrentUser(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get current user: %v", err)
+	}
+	if user == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "user not authenticated")
+	}
+
+	query := strings.TrimSpace(request.GetQuery())
+	if query == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "query is required")
+	}
+	if len(query) > maxSearchQueryLen {
+		return nil, status.Errorf(codes.InvalidArgument, "query too long (max %d characters)", maxSearchQueryLen)
+	}
+	if request.GetFilter() != "" {
+		if err := s.validateAttachmentFilter(ctx, request.GetFilter()); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid filter: %v", err)
+		}
+	}
+	if s.AttachmentVectorStore == nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "attachment image search is not configured; set embedding and image search providers and restart")
+	}
+
+	topK := int(request.GetTopK())
+	if topK <= 0 {
+		topK = defaultSearchTopK
+	}
+	if topK > maxSearchTopK {
+		topK = maxSearchTopK
+	}
+	fetchK := topK * 2
+	if fetchK < 50 {
+		fetchK = 50
+	}
+	if fetchK > maxAttachmentSearchFetch {
+		fetchK = maxAttachmentSearchFetch
+	}
+	for {
+		semanticHits, err := s.AttachmentVectorStore.QueryAttachments(ctx, query, fetchK, map[string]string{"creator_id": fmt.Sprintf("%d", user.ID)})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "attachment semantic search failed: %v", err)
+		}
+		textHits, err := s.Store.SearchAttachmentText(ctx, user.ID, query, fetchK)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "attachment text search failed: %v", err)
+		}
+		ranked := mergeAttachmentSearchHits(semanticHits, textHits)
+		results, err := s.resolveAttachmentSearchResults(ctx, user, ranked, request.GetFilter(), topK)
+		if err != nil {
+			return nil, err
+		}
+		if len(results) >= topK || fetchK >= maxAttachmentSearchFetch || len(ranked) < fetchK {
+			return &v1pb.SearchAttachmentsResponse{Results: results}, nil
+		}
+		fetchK *= 2
+		if fetchK > maxAttachmentSearchFetch {
+			fetchK = maxAttachmentSearchFetch
+		}
+	}
+}
+
+func (s *APIV1Service) resolveAttachmentSearchResults(
+	ctx context.Context,
+	user *store.User,
+	ranked []mergedAttachmentSearchHit,
+	filter string,
+	topK int,
+) ([]*v1pb.SearchAttachmentResult, error) {
+	results := make([]*v1pb.SearchAttachmentResult, 0, topK)
+	for _, hit := range ranked {
+		if len(results) >= topK {
+			break
+		}
+		find := &store.FindAttachment{ID: &hit.attachmentID, CreatorID: &user.ID}
+		if filter != "" {
+			find.Filters = append(find.Filters, filter)
+		}
+		attachment, err := s.Store.GetAttachment(ctx, find)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to load attachment search result: %v", err)
+		}
+		if attachment == nil {
+			continue
+		}
+		if err := s.checkAttachmentAccess(ctx, attachment); err != nil {
+			continue
+		}
+		results = append(results, &v1pb.SearchAttachmentResult{
+			Attachment: convertAttachmentFromStore(attachment),
+			Similarity: hit.similarity,
+			Snippet:    hit.snippet,
+			ChunkIndex: hit.chunkIndex,
+			TextScore:  hit.textScore,
+		})
+	}
+	return results, nil
+}
+
+type mergedAttachmentSearchHit struct {
+	attachmentID int32
+	score        float32
+	similarity   float32
+	textScore    float32
+	snippet      string
+	chunkIndex   int32
+}
+
+func mergeAttachmentSearchHits(semanticHits []vector.ScoredAttachment, textHits []*store.AttachmentTextSearchResult) []mergedAttachmentSearchHit {
+	merged := map[int32]*mergedAttachmentSearchHit{}
+	for index, hit := range semanticHits {
+		entry := merged[hit.AttachmentID]
+		if entry == nil {
+			entry = &mergedAttachmentSearchHit{attachmentID: hit.AttachmentID, chunkIndex: hit.ChunkIndex}
+			merged[hit.AttachmentID] = entry
+		}
+		entry.score += 1 / float32(60+index+1)
+		entry.similarity = hit.Similarity
+		entry.snippet = hit.Snippet
+		entry.chunkIndex = hit.ChunkIndex
+	}
+	for index, hit := range textHits {
+		entry := merged[hit.AttachmentID]
+		if entry == nil {
+			entry = &mergedAttachmentSearchHit{attachmentID: hit.AttachmentID}
+			merged[hit.AttachmentID] = entry
+		}
+		entry.score += 1 / float32(60+index+1)
+		entry.textScore = hit.TextScore
+		if entry.snippet == "" {
+			entry.snippet = hit.Snippet
+		}
+	}
+	results := make([]mergedAttachmentSearchHit, 0, len(merged))
+	for _, hit := range merged {
+		results = append(results, *hit)
+	}
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].score > results[j].score
+	})
+	return results
+}
+
 func (s *APIV1Service) GetAttachment(ctx context.Context, request *v1pb.GetAttachmentRequest) (*v1pb.Attachment, error) {
 	attachmentUID, err := ExtractAttachmentUIDFromName(request.Name)
 	if err != nil {
@@ -361,6 +508,11 @@ func (s *APIV1Service) DeleteAttachment(ctx context.Context, request *v1pb.Delet
 	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete attachment: %v", err)
 	}
+	if s.AttachmentVectorStore != nil {
+		if err := s.AttachmentVectorStore.DeleteAttachment(context.WithoutCancel(context.Background()), attachment.ID); err != nil {
+			slog.Warn("failed to delete attachment vector", "err", err, "attachmentID", attachment.ID)
+		}
+	}
 	return &emptypb.Empty{}, nil
 }
 
@@ -409,6 +561,13 @@ func (s *APIV1Service) BatchDeleteAttachments(ctx context.Context, request *v1pb
 
 	if err := s.Store.DeleteAttachments(ctx, attachments); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete attachments: %v", err)
+	}
+	if s.AttachmentVectorStore != nil {
+		for _, attachment := range attachments {
+			if err := s.AttachmentVectorStore.DeleteAttachment(context.WithoutCancel(context.Background()), attachment.ID); err != nil {
+				slog.Warn("failed to delete attachment vector", "err", err, "attachmentID", attachment.ID)
+			}
+		}
 	}
 
 	return &emptypb.Empty{}, nil

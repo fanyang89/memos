@@ -34,6 +34,9 @@
     "errors": {
       "load": "Failed to load attachments."
     },
+    "search": {
+      "placeholder": "Search image text or meaning…"
+    },
     "labels": {
       "live": "Live",
       "live-photo": "Live Photo",
@@ -479,7 +482,19 @@
       "embedding-no-provider": "None — semantic search disabled",
       "embedding-provider": "Provider",
       "embedding-title": "Semantic search",
-      "embedding-warning-no-key": "The selected provider has no API key set. Edit the integration above to add one."
+      "embedding-warning-no-key": "The selected provider has no API key set. Edit the integration above to add one.",
+      "image-search-description": "Use an Ollama/OpenAI-compatible vision model to extract OCR text, captions, tags, and objects from image attachments for search indexing.",
+      "image-search-empty-providers": "Add an AI integration first to enable image search.",
+      "image-search-model": "Vision model",
+      "image-search-model-help": "Use a multimodal model identifier from your provider. For Ollama, try qwen3-vl:8b or qwen2.5vl:7b.",
+      "image-search-model-placeholder": "qwen3-vl:8b",
+      "image-search-no-provider": "None — image search disabled",
+      "image-search-prompt": "Extra prompt",
+      "image-search-prompt-help": "Optional instructions appended to the default OCR and image-description prompt.",
+      "image-search-prompt-placeholder": "Prefer Chinese tags. Preserve invoice numbers exactly.",
+      "image-search-provider": "Provider",
+      "image-search-title": "Image search",
+      "image-search-warning-no-key": "The selected provider has no API key set. Edit the integration above to add one."
     },
     "instance": {
       "access-description": "Control sign-up, authentication, profile editing, and calendar defaults for this instance.",

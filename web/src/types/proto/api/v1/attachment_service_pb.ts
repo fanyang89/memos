@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file api/v1/attachment_service.proto.
  */
 export const file_api_v1_attachment_service: GenFile = /*@__PURE__*/
-  fileDesc("Ch9hcGkvdjEvYXR0YWNobWVudF9zZXJ2aWNlLnByb3RvEgxtZW1vcy5hcGkudjEivAEKC01vdGlvbk1lZGlhEi8KBmZhbWlseRgBIAEoDjIfLm1lbW9zLmFwaS52MS5Nb3Rpb25NZWRpYUZhbWlseRIrCgRyb2xlGAIgASgOMh0ubWVtb3MuYXBpLnYxLk1vdGlvbk1lZGlhUm9sZRIQCghncm91cF9pZBgDIAEoCRIhChlwcmVzZW50YXRpb25fdGltZXN0YW1wX3VzGAQgASgDEhoKEmhhc19lbWJlZGRlZF92aWRlbxgFIAEoCCLsAgoKQXR0YWNobWVudBIRCgRuYW1lGAEgASgJQgPgQQgSNAoLY3JlYXRlX3RpbWUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgPgQQMSFQoIZmlsZW5hbWUYAyABKAlCA+BBAhIUCgdjb250ZW50GAQgASgMQgPgQQQSGgoNZXh0ZXJuYWxfbGluaxgFIAEoCUID4EEBEhEKBHR5cGUYBiABKAlCA+BBAhIRCgRzaXplGAcgASgDQgPgQQMSFgoEbWVtbxgIIAEoCUID4EEBSACIAQESNAoMbW90aW9uX21lZGlhGAkgASgLMhkubWVtb3MuYXBpLnYxLk1vdGlvbk1lZGlhQgPgQQE6T+pBTAoXbWVtb3MuYXBpLnYxL0F0dGFjaG1lbnQSGGF0dGFjaG1lbnRzL3thdHRhY2htZW50fSoLYXR0YWNobWVudHMyCmF0dGFjaG1lbnRCBwoFX21lbW8iaAoXQ3JlYXRlQXR0YWNobWVudFJlcXVlc3QSMQoKYXR0YWNobWVudBgBIAEoCzIYLm1lbW9zLmFwaS52MS5BdHRhY2htZW50QgPgQQISGgoNYXR0YWNobWVudF9pZBgCIAEoCUID4EEBInUKFkxpc3RBdHRhY2htZW50c1JlcXVlc3QSFgoJcGFnZV9zaXplGAEgASgFQgPgQQESFwoKcGFnZV90b2tlbhgCIAEoCUID4EEBEhMKBmZpbHRlchgDIAEoCUID4EEBEhUKCG9yZGVyX2J5GAQgASgJQgPgQQEidQoXTGlzdEF0dGFjaG1lbnRzUmVzcG9uc2USLQoLYXR0YWNobWVudHMYASADKAsyGC5tZW1vcy5hcGkudjEuQXR0YWNobWVudBIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkSEgoKdG90YWxfc2l6ZRgDIAEoBSJFChRHZXRBdHRhY2htZW50UmVxdWVzdBItCgRuYW1lGAEgASgJQh/gQQL6QRkKF21lbW9zLmFwaS52MS9BdHRhY2htZW50IoIBChdVcGRhdGVBdHRhY2htZW50UmVxdWVzdBIxCgphdHRhY2htZW50GAEgASgLMhgubWVtb3MuYXBpLnYxLkF0dGFjaG1lbnRCA+BBAhI0Cgt1cGRhdGVfbWFzaxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2tCA+BBAiJIChdEZWxldGVBdHRhY2htZW50UmVxdWVzdBItCgRuYW1lGAEgASgJQh/gQQL6QRkKF21lbW9zLmFwaS52MS9BdHRhY2htZW50IjMKHUJhdGNoRGVsZXRlQXR0YWNobWVudHNSZXF1ZXN0EhIKBW5hbWVzGAEgAygJQgPgQQIqaAoRTW90aW9uTWVkaWFGYW1pbHkSIwofTU9USU9OX01FRElBX0ZBTUlMWV9VTlNQRUNJRklFRBAAEhQKEEFQUExFX0xJVkVfUEhPVE8QARIYChRBTkRST0lEX01PVElPTl9QSE9UTxACKlkKD01vdGlvbk1lZGlhUm9sZRIhCh1NT1RJT05fTUVESUFfUk9MRV9VTlNQRUNJRklFRBAAEgkKBVNUSUxMEAESCQoFVklERU8QAhINCglDT05UQUlORVIQAzLQBgoRQXR0YWNobWVudFNlcnZpY2USiQEKEENyZWF0ZUF0dGFjaG1lbnQSJS5tZW1vcy5hcGkudjEuQ3JlYXRlQXR0YWNobWVudFJlcXVlc3QaGC5tZW1vcy5hcGkudjEuQXR0YWNobWVudCI02kEKYXR0YWNobWVudILT5JMCIToKYXR0YWNobWVudCITL2FwaS92MS9hdHRhY2htZW50cxJ7Cg9MaXN0QXR0YWNobWVudHMSJC5tZW1vcy5hcGkudjEuTGlzdEF0dGFjaG1lbnRzUmVxdWVzdBolLm1lbW9zLmFwaS52MS5MaXN0QXR0YWNobWVudHNSZXNwb25zZSIbgtPkkwIVEhMvYXBpL3YxL2F0dGFjaG1lbnRzEnoKDUdldEF0dGFjaG1lbnQSIi5tZW1vcy5hcGkudjEuR2V0QXR0YWNobWVudFJlcXVlc3QaGC5tZW1vcy5hcGkudjEuQXR0YWNobWVudCIr2kEEbmFtZYLT5JMCHhIcL2FwaS92MS97bmFtZT1hdHRhY2htZW50cy8qfRKpAQoQVXBkYXRlQXR0YWNobWVudBIlLm1lbW9zLmFwaS52MS5VcGRhdGVBdHRhY2htZW50UmVxdWVzdBoYLm1lbW9zLmFwaS52MS5BdHRhY2htZW50IlTaQRZhdHRhY2htZW50LHVwZGF0ZV9tYXNrgtPkkwI1OgphdHRhY2htZW50MicvYXBpL3YxL3thdHRhY2htZW50Lm5hbWU9YXR0YWNobWVudHMvKn0SfgoQRGVsZXRlQXR0YWNobWVudBIlLm1lbW9zLmFwaS52MS5EZWxldGVBdHRhY2htZW50UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eSIr2kEEbmFtZYLT5JMCHiocL2FwaS92MS97bmFtZT1hdHRhY2htZW50cy8qfRKJAQoWQmF0Y2hEZWxldGVBdHRhY2htZW50cxIrLm1lbW9zLmFwaS52MS5CYXRjaERlbGV0ZUF0dGFjaG1lbnRzUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eSIqgtPkkwIkOgEqIh8vYXBpL3YxL2F0dGFjaG1lbnRzOmJhdGNoRGVsZXRlQq4BChBjb20ubWVtb3MuYXBpLnYxQhZBdHRhY2htZW50U2VydmljZVByb3RvUAFaMGdpdGh1Yi5jb20vdXNlbWVtb3MvbWVtb3MvcHJvdG8vZ2VuL2FwaS92MTthcGl2MaICA01BWKoCDE1lbW9zLkFwaS5WMcoCDE1lbW9zXEFwaVxWMeICGE1lbW9zXEFwaVxWMVxHUEJNZXRhZGF0YeoCDk1lbW9zOjpBcGk6OlYxYgZwcm90bzM", [file_google_api_annotations, file_google_api_client, file_google_api_field_behavior, file_google_api_resource, file_google_protobuf_empty, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("Ch9hcGkvdjEvYXR0YWNobWVudF9zZXJ2aWNlLnByb3RvEgxtZW1vcy5hcGkudjEivAEKC01vdGlvbk1lZGlhEi8KBmZhbWlseRgBIAEoDjIfLm1lbW9zLmFwaS52MS5Nb3Rpb25NZWRpYUZhbWlseRIrCgRyb2xlGAIgASgOMh0ubWVtb3MuYXBpLnYxLk1vdGlvbk1lZGlhUm9sZRIQCghncm91cF9pZBgDIAEoCRIhChlwcmVzZW50YXRpb25fdGltZXN0YW1wX3VzGAQgASgDEhoKEmhhc19lbWJlZGRlZF92aWRlbxgFIAEoCCLsAgoKQXR0YWNobWVudBIRCgRuYW1lGAEgASgJQgPgQQgSNAoLY3JlYXRlX3RpbWUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgPgQQMSFQoIZmlsZW5hbWUYAyABKAlCA+BBAhIUCgdjb250ZW50GAQgASgMQgPgQQQSGgoNZXh0ZXJuYWxfbGluaxgFIAEoCUID4EEBEhEKBHR5cGUYBiABKAlCA+BBAhIRCgRzaXplGAcgASgDQgPgQQMSFgoEbWVtbxgIIAEoCUID4EEBSACIAQESNAoMbW90aW9uX21lZGlhGAkgASgLMhkubWVtb3MuYXBpLnYxLk1vdGlvbk1lZGlhQgPgQQE6T+pBTAoXbWVtb3MuYXBpLnYxL0F0dGFjaG1lbnQSGGF0dGFjaG1lbnRzL3thdHRhY2htZW50fSoLYXR0YWNobWVudHMyCmF0dGFjaG1lbnRCBwoFX21lbW8iaAoXQ3JlYXRlQXR0YWNobWVudFJlcXVlc3QSMQoKYXR0YWNobWVudBgBIAEoCzIYLm1lbW9zLmFwaS52MS5BdHRhY2htZW50QgPgQQISGgoNYXR0YWNobWVudF9pZBgCIAEoCUID4EEBInUKFkxpc3RBdHRhY2htZW50c1JlcXVlc3QSFgoJcGFnZV9zaXplGAEgASgFQgPgQQESFwoKcGFnZV90b2tlbhgCIAEoCUID4EEBEhMKBmZpbHRlchgDIAEoCUID4EEBEhUKCG9yZGVyX2J5GAQgASgJQgPgQQEidQoXTGlzdEF0dGFjaG1lbnRzUmVzcG9uc2USLQoLYXR0YWNobWVudHMYASADKAsyGC5tZW1vcy5hcGkudjEuQXR0YWNobWVudBIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkSEgoKdG90YWxfc2l6ZRgDIAEoBSJXChhTZWFyY2hBdHRhY2htZW50c1JlcXVlc3QSEgoFcXVlcnkYASABKAlCA+BBAhISCgV0b3BfaxgCIAEoBUID4EEBEhMKBmZpbHRlchgDIAEoCUID4EEBIlIKGVNlYXJjaEF0dGFjaG1lbnRzUmVzcG9uc2USNQoHcmVzdWx0cxgBIAMoCzIkLm1lbW9zLmFwaS52MS5TZWFyY2hBdHRhY2htZW50UmVzdWx0IqgBChZTZWFyY2hBdHRhY2htZW50UmVzdWx0EjEKCmF0dGFjaG1lbnQYASABKAsyGC5tZW1vcy5hcGkudjEuQXR0YWNobWVudEID4EECEhIKCnNpbWlsYXJpdHkYAiABKAISFAoHc25pcHBldBgDIAEoCUID4EEDEhgKC2NodW5rX2luZGV4GAQgASgFQgPgQQMSFwoKdGV4dF9zY29yZRgFIAEoAkID4EEDIkUKFEdldEF0dGFjaG1lbnRSZXF1ZXN0Ei0KBG5hbWUYASABKAlCH+BBAvpBGQoXbWVtb3MuYXBpLnYxL0F0dGFjaG1lbnQiggEKF1VwZGF0ZUF0dGFjaG1lbnRSZXF1ZXN0EjEKCmF0dGFjaG1lbnQYASABKAsyGC5tZW1vcy5hcGkudjEuQXR0YWNobWVudEID4EECEjQKC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFza0ID4EECIkgKF0RlbGV0ZUF0dGFjaG1lbnRSZXF1ZXN0Ei0KBG5hbWUYASABKAlCH+BBAvpBGQoXbWVtb3MuYXBpLnYxL0F0dGFjaG1lbnQiMwodQmF0Y2hEZWxldGVBdHRhY2htZW50c1JlcXVlc3QSEgoFbmFtZXMYASADKAlCA+BBAipoChFNb3Rpb25NZWRpYUZhbWlseRIjCh9NT1RJT05fTUVESUFfRkFNSUxZX1VOU1BFQ0lGSUVEEAASFAoQQVBQTEVfTElWRV9QSE9UTxABEhgKFEFORFJPSURfTU9USU9OX1BIT1RPEAIqWQoPTW90aW9uTWVkaWFSb2xlEiEKHU1PVElPTl9NRURJQV9ST0xFX1VOU1BFQ0lGSUVEEAASCQoFU1RJTEwQARIJCgVWSURFTxACEg0KCUNPTlRBSU5FUhADMt4HChFBdHRhY2htZW50U2VydmljZRKJAQoQQ3JlYXRlQXR0YWNobWVudBIlLm1lbW9zLmFwaS52MS5DcmVhdGVBdHRhY2htZW50UmVxdWVzdBoYLm1lbW9zLmFwaS52MS5BdHRhY2htZW50IjTaQQphdHRhY2htZW50gtPkkwIhOgphdHRhY2htZW50IhMvYXBpL3YxL2F0dGFjaG1lbnRzEnsKD0xpc3RBdHRhY2htZW50cxIkLm1lbW9zLmFwaS52MS5MaXN0QXR0YWNobWVudHNSZXF1ZXN0GiUubWVtb3MuYXBpLnYxLkxpc3RBdHRhY2htZW50c1Jlc3BvbnNlIhuC0+STAhUSEy9hcGkvdjEvYXR0YWNobWVudHMSiwEKEVNlYXJjaEF0dGFjaG1lbnRzEiYubWVtb3MuYXBpLnYxLlNlYXJjaEF0dGFjaG1lbnRzUmVxdWVzdBonLm1lbW9zLmFwaS52MS5TZWFyY2hBdHRhY2htZW50c1Jlc3BvbnNlIiWC0+STAh86ASoiGi9hcGkvdjEvYXR0YWNobWVudHM6c2VhcmNoEnoKDUdldEF0dGFjaG1lbnQSIi5tZW1vcy5hcGkudjEuR2V0QXR0YWNobWVudFJlcXVlc3QaGC5tZW1vcy5hcGkudjEuQXR0YWNobWVudCIr2kEEbmFtZYLT5JMCHhIcL2FwaS92MS97bmFtZT1hdHRhY2htZW50cy8qfRKpAQoQVXBkYXRlQXR0YWNobWVudBIlLm1lbW9zLmFwaS52MS5VcGRhdGVBdHRhY2htZW50UmVxdWVzdBoYLm1lbW9zLmFwaS52MS5BdHRhY2htZW50IlTaQRZhdHRhY2htZW50LHVwZGF0ZV9tYXNrgtPkkwI1OgphdHRhY2htZW50MicvYXBpL3YxL3thdHRhY2htZW50Lm5hbWU9YXR0YWNobWVudHMvKn0SfgoQRGVsZXRlQXR0YWNobWVudBIlLm1lbW9zLmFwaS52MS5EZWxldGVBdHRhY2htZW50UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eSIr2kEEbmFtZYLT5JMCHiocL2FwaS92MS97bmFtZT1hdHRhY2htZW50cy8qfRKJAQoWQmF0Y2hEZWxldGVBdHRhY2htZW50cxIrLm1lbW9zLmFwaS52MS5CYXRjaERlbGV0ZUF0dGFjaG1lbnRzUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eSIqgtPkkwIkOgEqIh8vYXBpL3YxL2F0dGFjaG1lbnRzOmJhdGNoRGVsZXRlQq4BChBjb20ubWVtb3MuYXBpLnYxQhZBdHRhY2htZW50U2VydmljZVByb3RvUAFaMGdpdGh1Yi5jb20vdXNlbWVtb3MvbWVtb3MvcHJvdG8vZ2VuL2FwaS92MTthcGl2MaICA01BWKoCDE1lbW9zLkFwaS5WMcoCDE1lbW9zXEFwaVxWMeICGE1lbW9zXEFwaVxWMVxHUEJNZXRhZGF0YeoCDk1lbW9zOjpBcGk6OlYxYgZwcm90bzM", [file_google_api_annotations, file_google_api_client, file_google_api_field_behavior, file_google_api_resource, file_google_protobuf_empty, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message memos.api.v1.MotionMedia
@@ -242,6 +242,102 @@ export const ListAttachmentsResponseSchema: GenMessage<ListAttachmentsResponse> 
   messageDesc(file_api_v1_attachment_service, 4);
 
 /**
+ * @generated from message memos.api.v1.SearchAttachmentsRequest
+ */
+export type SearchAttachmentsRequest = Message<"memos.api.v1.SearchAttachmentsRequest"> & {
+  /**
+   * Required. The natural language search query.
+   *
+   * @generated from field: string query = 1;
+   */
+  query: string;
+
+  /**
+   * Optional. The maximum number of results to return.
+   * Default 20, maximum 100; values above 100 are coerced to 100.
+   *
+   * @generated from field: int32 top_k = 2;
+   */
+  topK: number;
+
+  /**
+   * Optional. A CEL filter to scope the search (same syntax as ListAttachments.filter).
+   *
+   * @generated from field: string filter = 3;
+   */
+  filter: string;
+};
+
+/**
+ * Describes the message memos.api.v1.SearchAttachmentsRequest.
+ * Use `create(SearchAttachmentsRequestSchema)` to create a new message.
+ */
+export const SearchAttachmentsRequestSchema: GenMessage<SearchAttachmentsRequest> = /*@__PURE__*/
+  messageDesc(file_api_v1_attachment_service, 5);
+
+/**
+ * @generated from message memos.api.v1.SearchAttachmentsResponse
+ */
+export type SearchAttachmentsResponse = Message<"memos.api.v1.SearchAttachmentsResponse"> & {
+  /**
+   * @generated from field: repeated memos.api.v1.SearchAttachmentResult results = 1;
+   */
+  results: SearchAttachmentResult[];
+};
+
+/**
+ * Describes the message memos.api.v1.SearchAttachmentsResponse.
+ * Use `create(SearchAttachmentsResponseSchema)` to create a new message.
+ */
+export const SearchAttachmentsResponseSchema: GenMessage<SearchAttachmentsResponse> = /*@__PURE__*/
+  messageDesc(file_api_v1_attachment_service, 6);
+
+/**
+ * @generated from message memos.api.v1.SearchAttachmentResult
+ */
+export type SearchAttachmentResult = Message<"memos.api.v1.SearchAttachmentResult"> & {
+  /**
+   * @generated from field: memos.api.v1.Attachment attachment = 1;
+   */
+  attachment?: Attachment | undefined;
+
+  /**
+   * Cosine similarity in [0, 1] from the best matching chunk.
+   *
+   * @generated from field: float similarity = 2;
+   */
+  similarity: number;
+
+  /**
+   * Plain text snippet from the best matching chunk.
+   *
+   * @generated from field: string snippet = 3;
+   */
+  snippet: string;
+
+  /**
+   * Zero-based index of the best matching chunk within the attachment search text.
+   *
+   * @generated from field: int32 chunk_index = 4;
+   */
+  chunkIndex: number;
+
+  /**
+   * Relative text score from filename/OCR/caption matching.
+   *
+   * @generated from field: float text_score = 5;
+   */
+  textScore: number;
+};
+
+/**
+ * Describes the message memos.api.v1.SearchAttachmentResult.
+ * Use `create(SearchAttachmentResultSchema)` to create a new message.
+ */
+export const SearchAttachmentResultSchema: GenMessage<SearchAttachmentResult> = /*@__PURE__*/
+  messageDesc(file_api_v1_attachment_service, 7);
+
+/**
  * @generated from message memos.api.v1.GetAttachmentRequest
  */
 export type GetAttachmentRequest = Message<"memos.api.v1.GetAttachmentRequest"> & {
@@ -259,7 +355,7 @@ export type GetAttachmentRequest = Message<"memos.api.v1.GetAttachmentRequest"> 
  * Use `create(GetAttachmentRequestSchema)` to create a new message.
  */
 export const GetAttachmentRequestSchema: GenMessage<GetAttachmentRequest> = /*@__PURE__*/
-  messageDesc(file_api_v1_attachment_service, 5);
+  messageDesc(file_api_v1_attachment_service, 8);
 
 /**
  * @generated from message memos.api.v1.UpdateAttachmentRequest
@@ -285,7 +381,7 @@ export type UpdateAttachmentRequest = Message<"memos.api.v1.UpdateAttachmentRequ
  * Use `create(UpdateAttachmentRequestSchema)` to create a new message.
  */
 export const UpdateAttachmentRequestSchema: GenMessage<UpdateAttachmentRequest> = /*@__PURE__*/
-  messageDesc(file_api_v1_attachment_service, 6);
+  messageDesc(file_api_v1_attachment_service, 9);
 
 /**
  * @generated from message memos.api.v1.DeleteAttachmentRequest
@@ -305,7 +401,7 @@ export type DeleteAttachmentRequest = Message<"memos.api.v1.DeleteAttachmentRequ
  * Use `create(DeleteAttachmentRequestSchema)` to create a new message.
  */
 export const DeleteAttachmentRequestSchema: GenMessage<DeleteAttachmentRequest> = /*@__PURE__*/
-  messageDesc(file_api_v1_attachment_service, 7);
+  messageDesc(file_api_v1_attachment_service, 10);
 
 /**
  * @generated from message memos.api.v1.BatchDeleteAttachmentsRequest
@@ -322,7 +418,7 @@ export type BatchDeleteAttachmentsRequest = Message<"memos.api.v1.BatchDeleteAtt
  * Use `create(BatchDeleteAttachmentsRequestSchema)` to create a new message.
  */
 export const BatchDeleteAttachmentsRequestSchema: GenMessage<BatchDeleteAttachmentsRequest> = /*@__PURE__*/
-  messageDesc(file_api_v1_attachment_service, 8);
+  messageDesc(file_api_v1_attachment_service, 11);
 
 /**
  * @generated from enum memos.api.v1.MotionMediaFamily
@@ -404,6 +500,16 @@ export const AttachmentService: GenService<{
     methodKind: "unary";
     input: typeof ListAttachmentsRequestSchema;
     output: typeof ListAttachmentsResponseSchema;
+  },
+  /**
+   * SearchAttachments searches image attachments by OCR text and semantic meaning.
+   *
+   * @generated from rpc memos.api.v1.AttachmentService.SearchAttachments
+   */
+  searchAttachments: {
+    methodKind: "unary";
+    input: typeof SearchAttachmentsRequestSchema;
+    output: typeof SearchAttachmentsResponseSchema;
   },
   /**
    * GetAttachment returns an attachment by name.

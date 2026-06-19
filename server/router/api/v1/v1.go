@@ -41,6 +41,8 @@ type APIV1Service struct {
 	// that case SearchMemos returns FailedPrecondition. Set by server.go after
 	// construction (the value depends on instance AI settings read at startup).
 	VectorStore *vector.Store
+	// AttachmentVectorStore backs SearchAttachments. nil when image search or embeddings are unconfigured.
+	AttachmentVectorStore *vector.AttachmentStore
 
 	// thumbnailSemaphore limits concurrent thumbnail generation to prevent memory exhaustion
 	thumbnailSemaphore       *semaphore.Weighted

@@ -223,6 +223,31 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/v1/attachments:search:
+        post:
+            tags:
+                - AttachmentService
+            description: SearchAttachments searches image attachments by OCR text and semantic meaning.
+            operationId: AttachmentService_SearchAttachments
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SearchAttachmentsRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchAttachmentsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/v1/auth/me:
         get:
             tags:
@@ -2805,6 +2830,12 @@ components:
                     description: |-
                         embedding is the semantic search feature configuration.
                          When unset or embedding.provider_id is empty, semantic search is disabled.
+                imageSearch:
+                    allOf:
+                        - $ref: '#/components/schemas/InstanceSetting_ImageSearchConfig'
+                    description: |-
+                        image_search is the attachment image search feature configuration.
+                         When unset or image_search.provider_id is empty, image search indexing is disabled.
             description: AI provider configuration settings.
         InstanceSetting_EmbeddingConfig:
             type: object
@@ -2855,6 +2886,23 @@ components:
                     type: boolean
                     description: disallow_change_nickname disallows changing nickname.
             description: General instance settings configuration.
+        InstanceSetting_ImageSearchConfig:
+            type: object
+            properties:
+                providerId:
+                    type: string
+                    description: |-
+                        provider_id references an entry in AISetting.providers[].id.
+                         Empty string means image search indexing is disabled.
+                visionModel:
+                    type: string
+                    description: |-
+                        vision_model is the provider-specific multimodal model identifier.
+                         Ollama via OpenAI-compat examples: "qwen3-vl:8b", "qwen2.5vl:7b".
+                prompt:
+                    type: string
+                    description: prompt is appended to the default extraction instruction.
+            description: ImageSearchConfig configures attachment image OCR and visual-description indexing.
         InstanceSetting_MemoRelatedSetting:
             type: object
             properties:
@@ -3522,6 +3570,55 @@ components:
                     type: string
                     description: When the access token expires.
                     format: date-time
+        SearchAttachmentResult:
+            required:
+                - attachment
+            type: object
+            properties:
+                attachment:
+                    $ref: '#/components/schemas/Attachment'
+                similarity:
+                    type: number
+                    description: Cosine similarity in [0, 1] from the best matching chunk.
+                    format: float
+                snippet:
+                    readOnly: true
+                    type: string
+                    description: Plain text snippet from the best matching chunk.
+                chunkIndex:
+                    readOnly: true
+                    type: integer
+                    description: Zero-based index of the best matching chunk within the attachment search text.
+                    format: int32
+                textScore:
+                    readOnly: true
+                    type: number
+                    description: Relative text score from filename/OCR/caption matching.
+                    format: float
+        SearchAttachmentsRequest:
+            required:
+                - query
+            type: object
+            properties:
+                query:
+                    type: string
+                    description: Required. The natural language search query.
+                topK:
+                    type: integer
+                    description: |-
+                        Optional. The maximum number of results to return.
+                         Default 20, maximum 100; values above 100 are coerced to 100.
+                    format: int32
+                filter:
+                    type: string
+                    description: Optional. A CEL filter to scope the search (same syntax as ListAttachments.filter).
+        SearchAttachmentsResponse:
+            type: object
+            properties:
+                results:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/SearchAttachmentResult'
         SearchMemosRequest:
             required:
                 - query

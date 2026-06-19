@@ -6,6 +6,8 @@ import {
   BatchDeleteAttachmentsRequestSchema,
   type ListAttachmentsRequest,
   ListAttachmentsRequestSchema,
+  type SearchAttachmentsRequest,
+  SearchAttachmentsRequestSchema,
 } from "@/types/proto/api/v1/attachment_service_pb";
 
 // Query keys factory
@@ -13,6 +15,8 @@ export const attachmentKeys = {
   all: ["attachments"] as const,
   lists: () => [...attachmentKeys.all, "list"] as const,
   list: (filters?: Partial<ListAttachmentsRequest>) => [...attachmentKeys.lists(), filters] as const,
+  searches: () => [...attachmentKeys.all, "search"] as const,
+  search: (request: Partial<SearchAttachmentsRequest>) => [...attachmentKeys.searches(), request] as const,
   details: () => [...attachmentKeys.all, "detail"] as const,
   detail: (name: string) => [...attachmentKeys.details(), name] as const,
 };
@@ -45,6 +49,25 @@ export function useInfiniteAttachments(request: Partial<ListAttachmentsRequest> 
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 5,
     enabled: options?.enabled ?? true,
+  });
+}
+
+export function useSearchAttachments(request: Partial<SearchAttachmentsRequest> = {}, options?: { enabled?: boolean }) {
+  const query = request.query?.trim() ?? "";
+
+  return useQuery({
+    queryKey: attachmentKeys.search({ ...request, query }),
+    enabled: (options?.enabled ?? true) && query !== "",
+    queryFn: async () => {
+      return attachmentServiceClient.searchAttachments(
+        create(SearchAttachmentsRequestSchema, {
+          ...request,
+          query,
+        } as Record<string, unknown>),
+      );
+    },
+    retry: false,
+    staleTime: 1000 * 60,
   });
 }
 
