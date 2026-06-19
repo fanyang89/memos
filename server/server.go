@@ -15,13 +15,17 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/pkg/errors"
 
+	"github.com/usememos/memos/internal/ai"
+	"github.com/usememos/memos/internal/ai/embeddings/openai"
 	"github.com/usememos/memos/internal/profile"
+	"github.com/usememos/memos/internal/vector"
 	storepb "github.com/usememos/memos/proto/gen/store"
 	apiv1 "github.com/usememos/memos/server/router/api/v1"
 	"github.com/usememos/memos/server/router/fileserver"
 	"github.com/usememos/memos/server/router/frontend"
 	"github.com/usememos/memos/server/router/mcp"
 	"github.com/usememos/memos/server/router/rss"
+	"github.com/usememos/memos/server/runner/memoindex"
 	"github.com/usememos/memos/server/runner/s3presign"
 	"github.com/usememos/memos/store"
 )
@@ -32,6 +36,11 @@ type Server struct {
 	Secret  string
 	Profile *profile.Profile
 	Store   *store.Store
+
+	// VectorStore backs semantic search. nil when embedding is unconfigured or
+	// the persistent vector DB failed to open; in that case the memoindex
+	// runner is skipped and SearchMemos returns FailedPrecondition.
+	VectorStore *vector.Store
 
 	echoServer *echo.Echo
 	httpServer *http.Server
@@ -75,6 +84,12 @@ func NewServer(ctx context.Context, profile *profile.Profile, store *store.Store
 
 	apiV1Service := apiv1.NewAPIV1Service(s.Secret, profile, store)
 	s.sseHub = apiV1Service.SSEHub
+
+	// Initialize the semantic-search vector store from the persisted AI
+	// embedding config. Failures are non-fatal: SearchMemos and the memoindex
+	// runner degrade to disabled when VectorStore stays nil.
+	s.VectorStore = s.initVectorStore(ctx)
+	apiV1Service.VectorStore = s.VectorStore
 
 	// Register HTTP file server routes BEFORE gRPC-Gateway to ensure proper range request handling for Safari.
 	// This uses native HTTP serving (http.ServeContent) instead of gRPC for video/audio files.
@@ -170,7 +185,101 @@ func (s *Server) startBackgroundRunners(ctx context.Context) {
 		slog.Info("s3presign runner stopped")
 	}()
 
+	// Semantic index runner: only when the vector store initialized (embedding configured).
+	if s.VectorStore != nil {
+		indexCtx, indexCancel := context.WithCancel(ctx)
+		s.backgroundRunnerCancels = append(s.backgroundRunnerCancels, indexCancel)
+
+		memoindexRunner := memoindex.NewRunner(s.Store, s.VectorStore, s.Profile.MemoIndexInterval)
+		// Synchronous backfill on startup so newly-configured embeddings catch up
+		// before the first tick.
+		memoindexRunner.RunOnce(ctx)
+
+		s.backgroundRunnerWG.Add(1)
+		go func() {
+			defer s.backgroundRunnerWG.Done()
+			memoindexRunner.Run(indexCtx)
+			slog.Info("memoindex runner stopped")
+		}()
+		slog.Info("memoindex runner started", "interval", s.Profile.MemoIndexInterval.String())
+	} else {
+		slog.Info("memoindex disabled: embedding not configured or vector store init failed")
+	}
+
 	slog.Info("background runners started")
+}
+
+// initVectorStore builds the semantic-search vector store from the persisted AI
+// embedding configuration. Returns nil (semantic search disabled) when no
+// embedding provider is configured, the provider is unsupported, or the
+// persistent DB cannot be opened.
+func (s *Server) initVectorStore(ctx context.Context) *vector.Store {
+	setting, err := s.Store.GetInstanceAISetting(ctx)
+	if err != nil {
+		slog.Error("failed to get AI setting for vector store init", "error", err)
+		return nil
+	}
+	embCfg := setting.GetEmbedding()
+	if embCfg.GetProviderId() == "" {
+		return nil
+	}
+
+	providers := make([]ai.ProviderConfig, 0, len(setting.GetProviders()))
+	for _, provider := range setting.GetProviders() {
+		if provider == nil {
+			continue
+		}
+		providers = append(providers, ai.ProviderConfig{
+			ID:       provider.GetId(),
+			Title:    provider.GetTitle(),
+			Type:     convertAIProviderTypeFromStore(provider.GetType()),
+			Endpoint: provider.GetEndpoint(),
+			APIKey:   provider.GetApiKey(),
+		})
+	}
+	provider, err := ai.FindProvider(providers, embCfg.GetProviderId())
+	if err != nil {
+		slog.Warn("embedding provider not found, semantic search disabled", "provider_id", embCfg.GetProviderId())
+		return nil
+	}
+	if provider.Type != ai.ProviderOpenAI {
+		slog.Warn("embedding provider type unsupported, semantic search disabled", "type", provider.Type)
+		return nil
+	}
+
+	model := embCfg.GetModel()
+	if model == "" {
+		model, err = ai.DefaultEmbeddingModel(provider.Type)
+		if err != nil {
+			slog.Warn("no embedding model resolved, semantic search disabled", "error", err)
+			return nil
+		}
+	}
+
+	embedder, err := openai.New(*provider, model)
+	if err != nil {
+		slog.Error("failed to construct embedding client, semantic search disabled", "error", err)
+		return nil
+	}
+	vstore, err := vector.NewPersistent(ctx, s.Profile.Data, model, embedder)
+	if err != nil {
+		slog.Error("failed to open vector store, semantic search disabled", "error", err)
+		return nil
+	}
+	slog.Info("vector store initialized", "model", model, "provider", provider.ID)
+	return vstore
+}
+
+// convertAIProviderTypeFromStore maps the store proto provider type to the ai package type.
+func convertAIProviderTypeFromStore(providerType storepb.AIProviderType) ai.ProviderType {
+	switch providerType {
+	case storepb.AIProviderType_OPENAI:
+		return ai.ProviderOpenAI
+	case storepb.AIProviderType_GEMINI:
+		return ai.ProviderGemini
+	default:
+		return ""
+	}
 }
 
 func (s *Server) stopBackgroundRunners() {
