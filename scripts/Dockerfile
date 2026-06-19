@@ -2,7 +2,9 @@ FROM --platform=$BUILDPLATFORM golang:1.26.2-alpine AS backend
 WORKDIR /backend-build
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates
+RUN sed -i 's#https\?://dl-cdn.alpinelinux.org/alpine#https://mirrors.cernet.edu.cn/alpine#g' /etc/apk/repositories && \
+    go env -w GOPROXY=https://goproxy.cn,direct && \
+    apk add --no-cache git ca-certificates
 
 # Copy go mod files and download dependencies (cached layer)
 COPY go.mod go.sum ./
@@ -29,7 +31,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM alpine:3.21 AS monolithic
 
 # Install runtime dependencies and create non-root user in single layer
-RUN apk add --no-cache tzdata ca-certificates su-exec && \
+RUN sed -i 's#https\?://dl-cdn.alpinelinux.org/alpine#https://mirrors.cernet.edu.cn/alpine#g' /etc/apk/repositories && \
+    apk add --no-cache tzdata ca-certificates su-exec && \
     addgroup -g 10001 -S nonroot && \
     adduser -u 10001 -S -G nonroot -h /var/opt/memos nonroot && \
     mkdir -p /var/opt/memos /usr/local/memos && \
